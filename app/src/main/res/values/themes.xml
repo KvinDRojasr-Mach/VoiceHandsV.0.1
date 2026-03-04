@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Tema base de la app, sin barra de acción, minimalista.
+         El diseño real se define en el tema de Jetpack Compose (VoiceHandsTheme). -->
+    <style name="Theme.VoiceHands" parent="@android:style/Theme.DeviceDefault.Light.NoActionBar">
+        <!-- Puedes ajustar colores de sistema aquí si lo necesitas más adelante. -->
+    </style>
+
+</resources>
+
