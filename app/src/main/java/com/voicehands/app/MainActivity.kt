@@ -3,7 +3,6 @@ package com.voicehands.app
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -23,7 +22,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -32,6 +30,12 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+
+//  importar los 3 archivos nuevos que se crearon en las nuevas carpetas
+import com.voicehands.app.ui.screens.ConfigScreen
+import com.voicehands.app.ui.screens.TextoAVozScreen
+import com.voicehands.app.ui.screens.TraducirScreen
+
 import com.voicehands.app.ui.theme.CelestePrimary
 import com.voicehands.app.ui.theme.CelestePrimaryDark
 import com.voicehands.app.ui.theme.CelestePrimaryLight
@@ -116,10 +120,10 @@ fun VoiceHandsHome() {
             }
         }
     ) { innerPadding ->
-        // Aquí es donde se intercambian las pantallas mágicamente
+        // El NavHost ahora llama a las funciones que viven en los otros archivos
         NavHost(
             navController = navController,
-            startDestination = "traducir", // La app arranca en la cámara por defecto
+            startDestination = "traducir",
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
@@ -128,27 +132,5 @@ fun VoiceHandsHome() {
             composable("traducir") { TraducirScreen() }
             composable("config") { ConfigScreen() }
         }
-    }
-}
-
-// Dummies temporales para que no marque error el NavHost
-@Composable
-fun TextoAVozScreen() {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text("Aquí va la pantalla de Texto a Voz (Mockup 3)")
-    }
-}
-
-@Composable
-fun TraducirScreen() {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text("Aquí va la cámara de MediaPipe (Mockup 1 y 2)")
-    }
-}
-
-@Composable
-fun ConfigScreen() {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text("Aquí va la Configuración de Permisos (Mockup 4)")
     }
 }
