@@ -8,8 +8,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 
 @Composable
-fun TraducirScreen() {
+fun TextoASenasScreen() {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text("Aquí va la cámara de MediaPipe (Mockup 1 y 2)")
+        Text("Aquí va la pantalla de Texto a Señas (Para que el sordo entienda)")
     }
 }

@@ -31,10 +31,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 
-//  importar los 3 archivos nuevos que se crearon en las nuevas carpetas
+// Nuevos imports con los nombres correctos
 import com.voicehands.app.ui.screens.ConfigScreen
-import com.voicehands.app.ui.screens.TextoAVozScreen
-import com.voicehands.app.ui.screens.TraducirScreen
+import com.voicehands.app.ui.screens.TextoASenasScreen
+import com.voicehands.app.ui.screens.SenasATextoScreen
 
 import com.voicehands.app.ui.theme.CelestePrimary
 import com.voicehands.app.ui.theme.CelestePrimaryDark
@@ -85,10 +85,10 @@ fun VoiceHandsHome() {
                 tonalElevation = 8.dp
             ) {
                 NavigationBarItem(
-                    icon = { Icon(Icons.Outlined.RecordVoiceOver, contentDescription = "Texto a Voz") },
-                    label = { Text("Texto a Voz") },
-                    selected = currentRoute == "texto_voz",
-                    onClick = { navController.navigate("texto_voz") },
+                    icon = { Icon(Icons.Outlined.RecordVoiceOver, contentDescription = "Texto a Señas") },
+                    label = { Text("Texto a Señas") },
+                    selected = currentRoute == "texto_a_senas",
+                    onClick = { navController.navigate("texto_a_senas") },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = CelestePrimaryDark,
                         selectedTextColor = CelestePrimaryDark,
@@ -96,10 +96,10 @@ fun VoiceHandsHome() {
                     )
                 )
                 NavigationBarItem(
-                    icon = { Icon(Icons.Outlined.CameraAlt, contentDescription = "Traducir") },
-                    label = { Text("Traducir") },
-                    selected = currentRoute == "traducir",
-                    onClick = { navController.navigate("traducir") },
+                    icon = { Icon(Icons.Outlined.CameraAlt, contentDescription = "Señas a Texto") },
+                    label = { Text("Señas a Texto") },
+                    selected = currentRoute == "senas_a_texto",
+                    onClick = { navController.navigate("senas_a_texto") },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = CelestePrimaryDark,
                         selectedTextColor = CelestePrimaryDark,
@@ -120,16 +120,15 @@ fun VoiceHandsHome() {
             }
         }
     ) { innerPadding ->
-        // El NavHost ahora llama a las funciones que viven en los otros archivos
         NavHost(
             navController = navController,
-            startDestination = "traducir",
+            startDestination = "senas_a_texto", // Arranca en la cámara por defecto
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            composable("texto_voz") { TextoAVozScreen() }
-            composable("traducir") { TraducirScreen() }
+            composable("texto_a_senas") { TextoASenasScreen() }
+            composable("senas_a_texto") { SenasATextoScreen() }
             composable("config") { ConfigScreen() }
         }
     }

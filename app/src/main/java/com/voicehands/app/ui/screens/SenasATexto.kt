@@ -8,8 +8,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 
 @Composable
-fun TextoAVozScreen() {
+fun SenasATextoScreen() {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text("Aquí va la pantalla de Texto a Voz (Mockup 3)")
+        Text("Aquí va la cámara de Señas a Texto/Voz (Para que el oyente entienda)")
     }
 }
