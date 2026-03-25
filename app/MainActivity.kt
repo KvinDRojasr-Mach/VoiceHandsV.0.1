@@ -31,7 +31,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 
-// Se importan las pantallas que viven en la carpeta ui.screens
+// Nuevos imports con los nombres correctos
 import com.voicehands.app.ui.screens.ConfigScreen
 import com.voicehands.app.ui.screens.TextoASenasScreen
 import com.voicehands.app.ui.screens.SenasATextoScreen
@@ -41,20 +41,15 @@ import com.voicehands.app.ui.theme.CelestePrimaryDark
 import com.voicehands.app.ui.theme.CelestePrimaryLight
 import com.voicehands.app.ui.theme.VoiceHandsTheme
 
-// 1. PUNTO DE ENTRADA: Esta es la clase principal que Android ejecuta al abrir la app.
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // setContent le indica a Android que se utilizará Jetpack Compose para la interfaz, no XML.
         setContent {
-            // VoiceHandsTheme aplica los colores y tipografías globales del proyecto.
             VoiceHandsTheme {
-                // Surface es como un lienzo en blanco que ocupa toda la pantalla.
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    // Se llama a la función que construye la estructura base.
                     VoiceHandsHome()
                 }
             }
@@ -62,20 +57,15 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-// 2. ESTRUCTURA PRINCIPAL: Aquí se arma la barra superior, la inferior y el contenedor de pantallas.
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
 fun VoiceHandsHome() {
-    // navController es el "GPS" de la app. Recuerda en qué pantalla se está y hacia dónde se va.
     val navController = rememberNavController()
-    // Se observa el estado actual de la navegación para saber qué botón iluminar abajo.
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    // Scaffold es una plantilla de diseño que ya trae los espacios para la barra superior (TopBar) y la inferior (BottomBar).
     Scaffold(
         topBar = {
-            // TopAppBar es la barra superior de color celeste que dice "VoiceHands".
             TopAppBar(
                 title = {
                     Text(
@@ -84,24 +74,20 @@ fun VoiceHandsHome() {
                     )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = CelestePrimary, // Color de fondo de la barra
-                    titleContentColor = Color.White // Color del texto
+                    containerColor = CelestePrimary,
+                    titleContentColor = Color.White
                 )
             )
         },
         bottomBar = {
-            // NavigationBar es la barra blanca de abajo con los tres iconos.
             NavigationBar(
                 containerColor = Color.White,
                 tonalElevation = 8.dp
             ) {
-                // BOTÓN 1: Texto a Señas
                 NavigationBarItem(
                     icon = { Icon(Icons.Outlined.RecordVoiceOver, contentDescription = "Texto a Señas") },
                     label = { Text("Texto a Señas") },
-                    // Si la ruta actual es "texto_a_senas", el botón se marca como seleccionado.
                     selected = currentRoute == "texto_a_senas",
-                    // Al hacer clic, se le indica al GPS (navController) la ruta a la cual navegar.
                     onClick = { navController.navigate("texto_a_senas") },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = CelestePrimaryDark,
@@ -109,8 +95,6 @@ fun VoiceHandsHome() {
                         indicatorColor = CelestePrimaryLight.copy(alpha = 0.5f)
                     )
                 )
-
-                // BOTÓN 2: Señas a Texto (El corazón del proyecto con la cámara)
                 NavigationBarItem(
                     icon = { Icon(Icons.Outlined.CameraAlt, contentDescription = "Señas a Texto") },
                     label = { Text("Señas a Texto") },
@@ -122,8 +106,6 @@ fun VoiceHandsHome() {
                         indicatorColor = CelestePrimaryLight.copy(alpha = 0.5f)
                     )
                 )
-
-                // BOTÓN 3: Configuración (Permisos)
                 NavigationBarItem(
                     icon = { Icon(Icons.Outlined.Settings, contentDescription = "Config") },
                     label = { Text("Config") },
@@ -138,17 +120,13 @@ fun VoiceHandsHome() {
             }
         }
     ) { innerPadding ->
-        // 3. EL GESTOR DE PANTALLAS: NavHost es el "hueco" en el medio de la pantalla donde se intercambian las vistas.
         NavHost(
             navController = navController,
-            // startDestination le indica a la app que arranque siempre en la cámara.
-            startDestination = "senas_a_texto",
-            // El padding asegura que las pantallas no se monten debajo de las barras superior e inferior.
+            startDestination = "senas_a_texto", // Arranca en la cámara por defecto
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // Aquí se enlazan las "rutas" (nombres en texto) con las funciones físicas que se crearon en los otros archivos.
             composable("texto_a_senas") { TextoASenasScreen() }
             composable("senas_a_texto") { SenasATextoScreen() }
             composable("config") { ConfigScreen() }
