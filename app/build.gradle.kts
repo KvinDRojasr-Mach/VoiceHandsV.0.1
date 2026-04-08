@@ -73,7 +73,7 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
     implementation("androidx.navigation:navigation-compose:2.7.7")
-    // Se definen e importan las librerías de CameraX necesarias para capturar y mostrar video
+// Se definen e importan las librerías de CameraX necesarias para capturar y mostrar video
     val cameraxVersion = "1.3.2"
     implementation("androidx.camera:camera-core:$cameraxVersion")
     implementation("androidx.camera:camera-camera2:$cameraxVersion")
