@@ -1,5 +1,11 @@
 package com.voicehands.app.ui.screens
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.view.LifecycleCameraController
+import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,21 +32,52 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
 import com.voicehands.app.ui.theme.CelestePrimary
 
 // PANTALLA: Señas a Texto
-// Esta vista es el núcleo del proyecto. Aquí se implementará la captura de video
-// en tiempo real y el reconocimiento para traducir las señas a texto u oralidad.
+// Esta vista es el núcleo del proyecto. Aquí se implementa la captura de video
+// en tiempo real y, posteriormente, el reconocimiento para traducir las señas.
 @Composable
 fun SenasATextoScreen() {
-    // Se utiliza un Column para organizar los elementos verticalmente (cámara arriba, botón abajo).
+    // 1. PREPARACIÓN DE CÁMARA Y PERMISOS
+    // Se obtiene el contexto actual y el ciclo de vida de la aplicación para gestionar la cámara.
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    // Se inicializa el controlador de la cámara de CameraX.
+    val cameraController = remember { LifecycleCameraController(context) }
+
+    // Se crea una variable de estado para saber si la aplicación ya tiene permiso de usar la cámara.
+    var hasCameraPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+
+    // Se configura el "lanzador" que mostrará el cuadro de diálogo de Android pidiendo permiso al usuario.
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { isGranted ->
+            hasCameraPermission = isGranted
+        }
+    )
+
+    // 2. ESTRUCTURA VISUAL DE LA PANTALLA
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -48,29 +85,41 @@ fun SenasATextoScreen() {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // 1. CONTENEDOR DE LA CÁMARA
-        // Se crea una tarjeta (Card) que servirá como marco para el video en vivo.
+        // CONTENEDOR DE LA CÁMARA
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f), // Toma el espacio disponible dejando lugar para el botón inferior
+                .weight(1f),
             shape = RoundedCornerShape(24.dp),
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
         ) {
-            // Box permite superponer elementos (texto sobre el video, botones flotantes).
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.DarkGray) // Color temporal oscuro mientras se conecta CameraX
+                    .background(Color.DarkGray)
             ) {
-                // --- AQUÍ IRÁ EL COMPONENTE DE CAMERAX EN EL FUTURO ---
-                Text(
-                    text = "El video de la cámara aparecerá aquí",
-                    color = Color.LightGray,
-                    modifier = Modifier.align(Alignment.Center)
-                )
+                // 3. LÓGICA DE VISUALIZACIÓN: Si hay permiso, se muestra la cámara. Si no, se muestra el cuadro gris.
+                if (hasCameraPermission) {
+                    // AndroidView permite incrustar vistas nativas (como PreviewView de CameraX) dentro de Compose.
+                    AndroidView(
+                        factory = { ctx ->
+                            PreviewView(ctx).apply {
+                                controller = cameraController
+                                // Se vincula la cámara al ciclo de vida de la app para que se apague si la app se minimiza.
+                                cameraController.bindToLifecycle(lifecycleOwner)
+                            }
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Text(
+                        text = "La cámara está desactivada",
+                        color = Color.LightGray,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
 
-                // 2. BARRA SUPERIOR SUPERPUESTA (Estado y Cambio de Cámara)
+                // BARRA SUPERIOR SUPERPUESTA (Estado y Cambio de Cámara)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -88,12 +137,11 @@ fun SenasATextoScreen() {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = "Detectando",
-                            color = Color(0xFF4CAF50), // Verde
+                            color = Color(0xFF4CAF50),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        // Punto verde parpadeante (simulado)
                         Box(
                             modifier = Modifier
                                 .size(8.dp)
@@ -101,7 +149,6 @@ fun SenasATextoScreen() {
                                 .background(Color(0xFF4CAF50))
                         )
                         Spacer(modifier = Modifier.width(16.dp))
-                        // Icono para cambiar de cámara frontal a trasera
                         Icon(
                             imageVector = Icons.Outlined.Cameraswitch,
                             contentDescription = "Cambiar cámara",
@@ -110,12 +157,12 @@ fun SenasATextoScreen() {
                     }
                 }
 
-                // 3. ETIQUETA FLOTANTE (Manos detectadas)
+                // ETIQUETA FLOTANTE (Manos detectadas)
                 Surface(
                     modifier = Modifier
                         .padding(top = 70.dp, start = 16.dp),
                     shape = RoundedCornerShape(8.dp),
-                    color = Color(0xFF4CAF50) // Verde
+                    color = Color(0xFF4CAF50)
                 ) {
                     Text(
                         text = "● 2 Manos Detectadas",
@@ -126,7 +173,7 @@ fun SenasATextoScreen() {
                     )
                 }
 
-                // 4. TARJETA INFERIOR SUPERPUESTA (Traducción final)
+                // TARJETA INFERIOR SUPERPUESTA (Traducción final)
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -151,7 +198,7 @@ fun SenasATextoScreen() {
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "La persona está diciendo: Buenos días",
+                                text = "La persona está diciendo: CAFÉ",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = Color.Black
@@ -167,10 +214,10 @@ fun SenasATextoScreen() {
             }
         }
 
-        // 5. BOTÓN PRINCIPAL DE ACCIÓN
-        // Este botón iniciará o detendrá el flujo de captura y análisis de MediaPipe.
+        // 4. BOTÓN PRINCIPAL DE ACCIÓN
         Button(
-            onClick = { /* TODO: Lógica para pedir permisos e iniciar cámara */ },
+            // Al presionar el botón, se lanza la petición de permiso al sistema operativo.
+            onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
@@ -188,13 +235,13 @@ fun SenasATextoScreen() {
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "Iniciar Detección",
+                // Si ya se tiene permiso, el botón podría cambiar su texto, por ahora se mantiene estático.
+                text = if (hasCameraPermission) "Detección Activa" else "Iniciar Detección",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
             )
         }
 
-        // Espaciador inferior para que el botón no quede pegado a la barra de navegación
         Spacer(modifier = Modifier.height(8.dp))
     }
 }
