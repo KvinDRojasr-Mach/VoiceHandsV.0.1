@@ -33,7 +33,7 @@ import androidx.navigation.compose.rememberNavController
 
 // Nuevos imports con los nombres correctos
 import com.voicehands.app.ui.screens.ConfigScreen
-import com.voicehands.app.ui.screens.TextoASenasScreen
+import com.voicehands.app.ui.screens.TextoAsenasScreen
 import com.voicehands.app.ui.screens.SenasATextoScreen
 
 import com.voicehands.app.ui.theme.CelestePrimary
@@ -127,7 +127,7 @@ fun VoiceHandsHome() {
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            composable("texto_a_senas") { TextoASenasScreen() }
+            composable("texto_a_senas") { TextoAsenasScreen() }
             composable("senas_a_texto") { SenasATextoScreen() }
             composable("config") { ConfigScreen() }
         }
