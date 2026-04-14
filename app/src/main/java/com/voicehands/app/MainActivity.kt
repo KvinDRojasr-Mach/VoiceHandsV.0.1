@@ -10,6 +10,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -50,6 +51,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.NavHost
@@ -156,26 +159,24 @@ private fun AppIniPantalla(onIniciar: () -> Unit) {
         // Spacer con weight empuja el contenido central verticalmente (espacio flexible arriba).
         Spacer(modifier = Modifier.weight(1f))
 
-        // Zona reservada para colocar más adelante un Image con el logo de la app.
+        // Logo principal centrado y sin fondo para un look limpio/minimalista.
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(168.dp),
+                .height(230.dp),
             contentAlignment = Alignment.Center,
         ) {
-            // Rectángulo suavemente visible solo para delimitar el área del futuro logo.
-            Box(
+            Image(
+                painter = painterResource(id = R.drawable.voicehands_logo),
+                contentDescription = "Logo de VoiceHands",
                 modifier = Modifier
-                    .fillMaxWidth(0.72f)
-                    .height(140.dp)
-                    .background(
-                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.14f),
-                        shape = RoundedCornerShape(24.dp),
-                    ),
+                    .fillMaxWidth(0.84f)
+                    .height(208.dp),
+                contentScale = ContentScale.Fit,
             )
         }
 
-        Spacer(modifier = Modifier.height(28.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         // Button de Material3: al hacer clic ejecuta onIniciar (el padre cambia mostrarAppPrincipal).
         Button(
