@@ -9,6 +9,7 @@ android {
     compileSdk = 36
 
     defaultConfig {
+
         applicationId = "com.voicehands.app"
         minSdk = 24
         targetSdk = 36
@@ -18,6 +19,26 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
+        }
+    }
+    android {
+        namespace = "com.voicehands.app"
+        compileSdk = 35 // O la versión que tengas
+
+        defaultConfig {
+            applicationId = "com.voicehands.app"
+            minSdk = 24
+            targetSdk = 35
+            // ... otras configuraciones
+
+            // Agrega este bloque NDK:
+            ndk {
+                // ARM para teléfonos físicos, x86 para tu emulador en Windows
+                abiFilters.add("armeabi-v7a")
+                abiFilters.add("arm64-v8a")
+                abiFilters.add("x86")
+                abiFilters.add("x86_64")
+            }
         }
     }
 
@@ -79,5 +100,7 @@ dependencies {
     implementation("androidx.camera:camera-camera2:$cameraxVersion")
     implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
     implementation("androidx.camera:camera-view:$cameraxVersion")
+    // Se importa la librería de MediaPipe para tareas de visión artificial (Detección de manos y postura)
+    implementation("com.google.mediapipe:tasks-vision:0.10.14")
 }
 

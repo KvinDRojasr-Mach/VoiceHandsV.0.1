@@ -49,39 +49,51 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 
-/**
- * Pestaña **Señas a Texto**: vista previa de cámara (CameraX), datos de demostración y botón de permiso.
- *
- * - [LifecycleCameraController]: controla apertura/cierre de cámara ligado al ciclo de vida.
- * - [rememberLauncherForActivityResult]: muestra el diálogo de permiso de Android al pulsar el botón inferior.
- * - Los colores de marcos y textos fuera del vídeo usan [MaterialTheme] para adaptarse al tema claro/oscuro.
- */
+// IMPORTA TU ANALIZADOR AQUÍ (Asegúrate de que la ruta coincida con tu paquete)
+import com.voicehands.app.analyzer.HandAnalyzer
+
 @Composable
 fun SenasATextoScreen() {
-    // LocalContext: acceso al Context de Android (necesario para CameraX y permisos).
     val context = LocalContext.current
-    // LocalLifecycleOwner: permite que la cámara se desactive sola al salir de la pantalla o de la app.
     val lifecycleOwner = LocalLifecycleOwner.current
-    // remember: el controlador se crea una sola vez mientras viva esta composición (no en cada recomposición).
     val cameraController = remember { LifecycleCameraController(context) }
 
-    // Estado: ¿el usuario ya concedió permiso de cámara?
+    // 1. ESTADOS PARA LA INTELIGENCIA ARTIFICIAL
+    var numeroDetectado by remember { mutableStateOf("") }
+    var cantidadManos by remember { mutableStateOf(0) }
+
+    // 2. INICIALIZAR EL ANALIZADOR
+    val analyzer = remember {
+        HandAnalyzer(
+            context = context,
+            onHandResults = { result ->
+                // Actualizamos cuántas manos hay en pantalla
+                cantidadManos = result.landmarks().size
+                // Si no hay manos, limpiamos el número
+                if (cantidadManos == 0) {
+                    numeroDetectado = ""
+                }
+            },
+            onNumberDetected = { numero ->
+                // Actualizamos el número detectado en tiempo real
+                numeroDetectado = numero.toString()
+            }
+        )
+    }
+
     var hasCameraPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED,
         )
     }
 
-    // Contrato estándar de Android para pedir un permiso en tiempo de ejecución; el resultado actualiza el estado.
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
         onResult = { isGranted -> hasCameraPermission = isGranted },
     )
 
-    // Atajo al esquema de color actual (claro u oscuro) para no repetir MaterialTheme.colorScheme.
     val colorEsquema = MaterialTheme.colorScheme
 
-    // Column principal: fondo de pantalla del tema + tarjeta de cámara (con peso) + botón fijo abajo.
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -90,7 +102,6 @@ fun SenasATextoScreen() {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        // Card exterior: marco redondeado alrededor del área de vídeo (color surfaceVariant del tema).
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -99,26 +110,27 @@ fun SenasATextoScreen() {
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
             colors = CardDefaults.cardColors(containerColor = colorEsquema.surfaceVariant),
         ) {
-            // Box apilando: vídeo o mensaje, overlays de UI (barra superior simulada, chip, tarjeta traducción).
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    // Gris oscuro fijo detrás del vídeo: mejora percepción cuando no hay imagen aún.
                     .background(Color(0xFF2C2C2C)),
             ) {
                 if (hasCameraPermission) {
-                    // AndroidView: incrusta una vista tradicional (PreviewView) dentro de Compose.
                     AndroidView(
                         factory = { ctx ->
                             PreviewView(ctx).apply {
                                 controller = cameraController
+                                // 3. CONECTAR LA CÁMARA CON EL ANALIZADOR DE IA
+                                cameraController.setImageAnalysisAnalyzer(
+                                    ContextCompat.getMainExecutor(ctx),
+                                    analyzer
+                                )
                                 cameraController.bindToLifecycle(lifecycleOwner)
                             }
                         },
                         modifier = Modifier.fillMaxSize(),
                     )
                 } else {
-                    // Sin permiso no hay preview: mostramos mensaje centrado con color legible del tema.
                     Text(
                         text = "La cámara está desactivada",
                         color = colorEsquema.onSurfaceVariant,
@@ -126,7 +138,6 @@ fun SenasATextoScreen() {
                     )
                 }
 
-                // Fila superior simulada (mock): palabra detectada + estado "Detectando" (lectura sobre vídeo).
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -135,16 +146,17 @@ fun SenasATextoScreen() {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    // 4. MOSTRAR EL NÚMERO REAL
                     Text(
-                        text = "CAFÉ",
+                        text = if (numeroDetectado.isEmpty()) "--" else numeroDetectado,
                         color = Color.White,
-                        fontSize = 20.sp,
+                        fontSize = 28.sp,
                         fontWeight = FontWeight.Bold,
                     )
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = "Detectando",
-                            color = Color(0xFF4CAF50),
+                            text = if (cantidadManos > 0) "Detectando" else "Buscando manos...",
+                            color = if (cantidadManos > 0) Color(0xFF4CAF50) else Color.Yellow,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
                         )
@@ -153,26 +165,20 @@ fun SenasATextoScreen() {
                             modifier = Modifier
                                 .size(8.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFF4CAF50)),
-                        )
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Icon(
-                            imageVector = Icons.Outlined.Cameraswitch,
-                            contentDescription = "Cambiar cámara",
-                            tint = Color.White,
+                                .background(if (cantidadManos > 0) Color(0xFF4CAF50) else Color.Yellow),
                         )
                     }
                 }
 
-                // Chip verde de ejemplo ("manos detectadas"); color fijo para simular estado de ML.
+                // CHIP DE MANOS REAL
                 Surface(
                     modifier = Modifier
                         .padding(top = 70.dp, start = 16.dp),
                     shape = RoundedCornerShape(8.dp),
-                    color = Color(0xFF4CAF50),
+                    color = if (cantidadManos > 0) Color(0xFF4CAF50) else Color.Gray,
                 ) {
                     Text(
-                        text = "● 2 Manos Detectadas",
+                        text = "● $cantidadManos Manos Detectadas",
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
@@ -180,7 +186,6 @@ fun SenasATextoScreen() {
                     )
                 }
 
-                // Tarjeta inferior: texto de traducción con colores surface/onSurface del tema (modo claro/oscuro).
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -199,29 +204,24 @@ fun SenasATextoScreen() {
                     ) {
                         Column {
                             Text(
-                                text = "Traducción:",
+                                text = "Traducción en vivo:",
                                 fontSize = 12.sp,
                                 color = colorEsquema.onSurfaceVariant,
                             )
                             Spacer(modifier = Modifier.height(4.dp))
+                            // TEXTO DE TRADUCCIÓN REAL
                             Text(
-                                text = "La persona está diciendo: CAFÉ",
+                                text = if (numeroDetectado.isEmpty()) "Haz una seña con tu mano" else "Número detectado: $numeroDetectado",
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = colorEsquema.onSurface,
                             )
                         }
-                        Icon(
-                            imageVector = Icons.Outlined.VolumeUp,
-                            contentDescription = "Reproducir voz",
-                            tint = colorEsquema.primary,
-                        )
                     }
                 }
             }
         }
 
-        // Botón inferior: dispara la petición de permiso de cámara (o indica que la detección está activa).
         Button(
             onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) },
             modifier = Modifier
