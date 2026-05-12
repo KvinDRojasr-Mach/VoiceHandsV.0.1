@@ -2,3 +2,15 @@
 /.gradle/
 /app/build/
 /build/
+
+# Android SDK (ruta absoluta por máquina; nunca versionar — evita errores tras pull)
+local.properties
+
+# Android Studio
+/.idea/caches/
+/.idea/libraries/
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+*.iml
+.DS_Store

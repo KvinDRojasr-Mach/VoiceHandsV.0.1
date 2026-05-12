@@ -222,8 +222,9 @@ fun VoiceHandsHome(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    // Texto del buscador de "Texto a Señas"; rememberSaveable evita perderlo al girar el teléfono.
+    // Texto del buscador de "Texto a Señas" (solo visible en subpestaña Palabras).
     var consultaBuscador by rememberSaveable { mutableStateOf("") }
+    var mostrarBuscadorTextoSena by rememberSaveable { mutableStateOf(true) }
 
     // Colores fijos sobre el azul corporativo: blanco puro y variantes con alpha para contraste WCAG-friendly.
     val colorBarraMarca = MaterialTheme.colorScheme.primary
@@ -270,7 +271,7 @@ fun VoiceHandsHome(
                     }
                 }
                 // El buscador solo tiene sentido en la pestaña de señas comunes; en las otras no se muestra.
-                if (currentRoute == "texto_a_senas") {
+                if (currentRoute == "texto_a_senas" && mostrarBuscadorTextoSena) {
                     // Colores del interior del campo: van sobre fondo "surface" (blanco en claro), no sobre el azul.
                     // Por eso NO usamos tinteSobreMarcaSuave (blanco semitransparente): se perdería sobre blanco.
                     val colorTextoCampo = MaterialTheme.colorScheme.onSurface
@@ -374,8 +375,10 @@ fun VoiceHandsHome(
         ) {
             // composable("ruta") { ... }: define una pantalla en el grafo de navegación.
             composable("texto_a_senas") {
-                // Pasamos la consulta para filtrar la rejilla sin duplicar el campo de texto aquí.
-                TextoAsenasScreen(consultaBuscador = consultaBuscador)
+                TextoAsenasScreen(
+                    consultaBuscador = consultaBuscador,
+                    onMostrarBuscadorCabecera = { mostrarBuscadorTextoSena = it },
+                )
             }
             composable("senas_a_texto") { SenasATextoScreen() }
             composable("config") { ConfigScreen() }
