@@ -11,9 +11,20 @@ import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.gesturerecognizer.GestureRecognizer
 import com.google.mediapipe.tasks.vision.gesturerecognizer.GestureRecognizerResult
 
+data class InfoMano(
+    val mano: String = "-",        // "Izquierda" o "Derecha"
+    val letra: String = "-",       // Cualquier letra A-Z
+    val numero: String = "-",      // "0", "1", "2", "3"
+    val rawLabel: String = "None" // Etiqueta cruda para depuración
+)
+
 class HandAnalyzer(
     private val context: Context,
-    private val onGestureDetected: (gestoMano1: String, gestoMano2: String, totalManos: Int) -> Unit
+    private val onGesturesDetected: (
+        manoIzquierda: InfoMano,
+        manoDerecha: InfoMano,
+        totalManos: Int
+    ) -> Unit
 ) : ImageAnalysis.Analyzer {
 
     private var gestureRecognizer: GestureRecognizer? = null
@@ -31,32 +42,74 @@ class HandAnalyzer(
             .setBaseOptions(baseOptions)
             .setRunningMode(RunningMode.LIVE_STREAM)
             .setNumHands(2)
-            // AJUSTE CLAVE 1: Bajar umbrales de confianza para mejorar la precisión de captura
-            .setMinHandDetectionConfidence(0.3f)
-            .setMinHandPresenceConfidence(0.3f)
-            .setMinTrackingConfidence(0.3f)
+            .setMinHandDetectionConfidence(0.15f)
+            .setMinHandPresenceConfidence(0.15f)
+            .setMinTrackingConfidence(0.15f)
             .setResultListener { result: GestureRecognizerResult, _ ->
                 val gestures = result.gestures()
-                var mano1Gesto = "Desconocido"
-                var mano2Gesto = "Desconocido"
+                val handednessList = result.handedness()
                 val totalManos = gestures.size
 
-                if (gestures.isNotEmpty() && gestures[0].isNotEmpty()) {
-                    // Si el score es mayor al 40% se toma como válido
-                    val topGesture = gestures[0][0]
-                    if (topGesture.score() > 0.4f) {
-                        mano1Gesto = topGesture.categoryName()
+                var infoIzq = InfoMano()
+                var infoDer = InfoMano()
+
+                for (i in 0 until totalManos) {
+                    if (gestures[i].isNotEmpty()) {
+                        val topGesture = gestures[i][0]
+
+                        if (topGesture.score() > 0.15f) {
+                            val originalLabel = topGesture.categoryName().trim()
+                            val cleanedLabel = originalLabel.uppercase()
+
+                            var ladoMano = "Desconocida"
+                            if (handednessList.size > i && handednessList[i].isNotEmpty()) {
+                                val handCategory = handednessList[i][0].categoryName()
+                                ladoMano = when (handCategory.lowercase()) {
+                                    "left" -> "Derecha"
+                                    "right" -> "Izquierda"
+                                    else -> handCategory
+                                }
+                            }
+
+                            var letraDet = "-"
+                            var numDet = "-"
+
+                            when {
+                                // Mapeo de Números (mantiene desambiguación A/0 si el modelo confunde el puño)
+                                cleanedLabel in listOf("0", "1", "2", "3") -> {
+                                    numDet = cleanedLabel
+                                    if (cleanedLabel == "0") letraDet = "A"
+                                }
+                                // Mapeo General para todo el Abecedario A-Z
+                                cleanedLabel.length == 1 && cleanedLabel[0].isLetter() -> {
+                                    letraDet = cleanedLabel
+                                }
+                                // Soporte para nombres formateados de clases (ej. "VOCAL_E" o "LETTER_B")
+                                cleanedLabel.contains("_") -> {
+                                    val parteLetra = cleanedLabel.split("_").last()
+                                    if (parteLetra.length == 1 && parteLetra[0].isLetter()) {
+                                        letraDet = parteLetra
+                                    }
+                                }
+                            }
+
+                            val infoProcesada = InfoMano(
+                                mano = ladoMano,
+                                letra = letraDet,
+                                numero = numDet,
+                                rawLabel = "$originalLabel (${(topGesture.score() * 100).toInt()}%)"
+                            )
+
+                            if (ladoMano == "Izquierda") {
+                                infoIzq = infoProcesada
+                            } else if (ladoMano == "Derecha") {
+                                infoDer = infoProcesada
+                            }
+                        }
                     }
                 }
 
-                if (gestures.size > 1 && gestures[1].isNotEmpty()) {
-                    val topGesture = gestures[1][0]
-                    if (topGesture.score() > 0.4f) {
-                        mano2Gesto = topGesture.categoryName()
-                    }
-                }
-
-                onGestureDetected(mano1Gesto, mano2Gesto, totalManos)
+                onGesturesDetected(infoIzq, infoDer, totalManos)
             }
             .setErrorListener { error ->
                 error.printStackTrace()
@@ -70,10 +123,8 @@ class HandAnalyzer(
         try {
             val bitmapBuffer = imageProxy.toBitmap()
 
-            // AJUSTE CLAVE 2: Rotar y aplicar reflejo si es necesario para sincronizar ejes
             val matrix = Matrix().apply {
                 postRotate(imageProxy.imageInfo.rotationDegrees.toFloat())
-                // Si la rotación es de cámara frontal (usualmente 270 o 90 grados), invertimos en X
                 postScale(-1f, 1f, bitmapBuffer.width / 2f, bitmapBuffer.height / 2f)
             }
 

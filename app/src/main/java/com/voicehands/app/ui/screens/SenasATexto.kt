@@ -53,6 +53,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 
 import com.voicehands.app.analyzer.HandAnalyzer
+import com.voicehands.app.analyzer.InfoMano
 
 @Composable
 fun SenasATextoScreen() {
@@ -67,20 +68,20 @@ fun SenasATextoScreen() {
     }
 
     var cantidadManos by remember { mutableIntStateOf(0) }
-    var gestoMano1 by remember { mutableStateOf("") }
-    var gestoMano2 by remember { mutableStateOf("") }
+    var manoIzquierdaInfo by remember { mutableStateOf(InfoMano()) }
+    var manoDerechaInfo by remember { mutableStateOf(InfoMano()) }
 
     val analyzer = remember {
         HandAnalyzer(
             context = context,
-            onGestureDetected = { m1, m2, total ->
+            onGesturesDetected = { izq, der, total ->
                 cantidadManos = total
                 if (total == 0) {
-                    gestoMano1 = ""
-                    gestoMano2 = ""
+                    manoIzquierdaInfo = InfoMano()
+                    manoDerechaInfo = InfoMano()
                 } else {
-                    gestoMano1 = m1
-                    gestoMano2 = m2
+                    manoIzquierdaInfo = izq
+                    manoDerechaInfo = der
                 }
             }
         )
@@ -152,15 +153,15 @@ fun SenasATextoScreen() {
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = if (cantidadManos == 0) "--" else gestoMano1,
+                        text = if (cantidadManos == 0) "Esperando señas..." else "Detección Dual Activa",
                         color = Color.White,
-                        fontSize = 24.sp,
+                        fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                     )
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = if (cantidadManos > 0) "Detectando" else "Buscando manos...",
+                            text = if (cantidadManos > 0) "Detectando" else "Buscando...",
                             color = if (cantidadManos > 0) Color(0xFF4CAF50) else Color.Yellow,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
@@ -208,7 +209,7 @@ fun SenasATextoScreen() {
                     )
                 }
 
-                // TARJETA INFERIOR TRADUCCIÓN
+                // TARJETA INFERIOR TRADUCCIÓN SIMULTÁNEA
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -218,31 +219,95 @@ fun SenasATextoScreen() {
                     colors = CardDefaults.cardColors(containerColor = colorEsquema.surface),
                     elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
                 ) {
-                    Row(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Column {
-                            Text(
-                                text = "Traducción detectada:",
-                                fontSize = 12.sp,
-                                color = colorEsquema.onSurfaceVariant,
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // BLOQUE MANO IZQUIERDA
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = "👈 Izquierda",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = colorEsquema.primary
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text("Letra", fontSize = 10.sp, color = colorEsquema.onSurfaceVariant)
+                                        Text(
+                                            text = manoIzquierdaInfo.letra,
+                                            fontSize = 22.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = colorEsquema.secondary
+                                        )
+                                    }
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text("Número", fontSize = 10.sp, color = colorEsquema.onSurfaceVariant)
+                                        Text(
+                                            text = manoIzquierdaInfo.numero,
+                                            fontSize = 22.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = colorEsquema.tertiary
+                                        )
+                                    }
+                                }
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .width(1.dp)
+                                    .height(40.dp)
+                                    .background(colorEsquema.outlineVariant)
                             )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = when (cantidadManos) {
-                                    0 -> "Realiza una seña frente a la cámara"
-                                    1 -> "Seña: $gestoMano1"
-                                    else -> "Mano 1: $gestoMano1 | Mano 2: $gestoMano2"
-                                },
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = colorEsquema.onSurface,
-                            )
+
+                            // BLOQUE MANO DERECHA
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = "👉 Derecha",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = colorEsquema.primary
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text("Letra", fontSize = 10.sp, color = colorEsquema.onSurfaceVariant)
+                                        Text(
+                                            text = manoDerechaInfo.letra,
+                                            fontSize = 22.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = colorEsquema.secondary
+                                        )
+                                    }
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text("Número", fontSize = 10.sp, color = colorEsquema.onSurfaceVariant)
+                                        Text(
+                                            text = manoDerechaInfo.numero,
+                                            fontSize = 22.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = colorEsquema.tertiary
+                                        )
+                                    }
+                                }
+                            }
                         }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = "IA Raw: Izq [${manoIzquierdaInfo.rawLabel}] | Der [${manoDerechaInfo.rawLabel}]",
+                            fontSize = 10.sp,
+                            color = Color.Gray,
+                            fontWeight = FontWeight.Medium
+                        )
                     }
                 }
             }
