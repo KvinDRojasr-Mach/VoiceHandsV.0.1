@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.core.CameraSelector
 import androidx.camera.view.LifecycleCameraController
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
@@ -23,17 +24,19 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Cameraswitch
 import androidx.compose.material.icons.outlined.PhotoCamera
-import androidx.compose.material.icons.outlined.VolumeUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -49,7 +52,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 
-// IMPORTA TU ANALIZADOR AQUÍ (Asegúrate de que la ruta coincida con tu paquete)
 import com.voicehands.app.analyzer.HandAnalyzer
 
 @Composable
@@ -58,25 +60,28 @@ fun SenasATextoScreen() {
     val lifecycleOwner = LocalLifecycleOwner.current
     val cameraController = remember { LifecycleCameraController(context) }
 
-    // 1. ESTADOS PARA LA INTELIGENCIA ARTIFICIAL
-    var numeroDetectado by remember { mutableStateOf("") }
-    var cantidadManos by remember { mutableStateOf(0) }
+    var cameraSelector by remember { mutableStateOf(CameraSelector.DEFAULT_FRONT_CAMERA) }
 
-    // 2. INICIALIZAR EL ANALIZADOR
+    LaunchedEffect(cameraSelector) {
+        cameraController.cameraSelector = cameraSelector
+    }
+
+    var cantidadManos by remember { mutableIntStateOf(0) }
+    var gestoMano1 by remember { mutableStateOf("") }
+    var gestoMano2 by remember { mutableStateOf("") }
+
     val analyzer = remember {
         HandAnalyzer(
             context = context,
-            onHandResults = { result ->
-                // Actualizamos cuántas manos hay en pantalla
-                cantidadManos = result.landmarks().size
-                // Si no hay manos, limpiamos el número
-                if (cantidadManos == 0) {
-                    numeroDetectado = ""
+            onGestureDetected = { m1, m2, total ->
+                cantidadManos = total
+                if (total == 0) {
+                    gestoMano1 = ""
+                    gestoMano2 = ""
+                } else {
+                    gestoMano1 = m1
+                    gestoMano2 = m2
                 }
-            },
-            onNumberDetected = { numero ->
-                // Actualizamos el número detectado en tiempo real
-                numeroDetectado = numero.toString()
             }
         )
     }
@@ -120,7 +125,6 @@ fun SenasATextoScreen() {
                         factory = { ctx ->
                             PreviewView(ctx).apply {
                                 controller = cameraController
-                                // 3. CONECTAR LA CÁMARA CON EL ANALIZADOR DE IA
                                 cameraController.setImageAnalysisAnalyzer(
                                     ContextCompat.getMainExecutor(ctx),
                                     analyzer
@@ -138,21 +142,22 @@ fun SenasATextoScreen() {
                     )
                 }
 
+                // BARRA SUPERIOR
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(Color.Black.copy(alpha = 0.5f))
-                        .padding(16.dp),
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    // 4. MOSTRAR EL NÚMERO REAL
                     Text(
-                        text = if (numeroDetectado.isEmpty()) "--" else numeroDetectado,
+                        text = if (cantidadManos == 0) "--" else gestoMano1,
                         color = Color.White,
-                        fontSize = 28.sp,
+                        fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
                     )
+
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = if (cantidadManos > 0) "Detectando" else "Buscando manos...",
@@ -167,18 +172,35 @@ fun SenasATextoScreen() {
                                 .clip(CircleShape)
                                 .background(if (cantidadManos > 0) Color(0xFF4CAF50) else Color.Yellow),
                         )
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        IconButton(
+                            onClick = {
+                                cameraSelector = if (cameraSelector == CameraSelector.DEFAULT_FRONT_CAMERA) {
+                                    CameraSelector.DEFAULT_BACK_CAMERA
+                                } else {
+                                    CameraSelector.DEFAULT_FRONT_CAMERA
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Cameraswitch,
+                                contentDescription = "Cambiar cámara",
+                                tint = Color.White
+                            )
+                        }
                     }
                 }
 
-                // CHIP DE MANOS REAL
+                // CHIP CONTEO
                 Surface(
                     modifier = Modifier
-                        .padding(top = 70.dp, start = 16.dp),
+                        .padding(top = 75.dp, start = 16.dp),
                     shape = RoundedCornerShape(8.dp),
                     color = if (cantidadManos > 0) Color(0xFF4CAF50) else Color.Gray,
                 ) {
                     Text(
-                        text = "● $cantidadManos Manos Detectadas",
+                        text = "● $cantidadManos Mano(s) Detectada(s)",
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
@@ -186,6 +208,7 @@ fun SenasATextoScreen() {
                     )
                 }
 
+                // TARJETA INFERIOR TRADUCCIÓN
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -204,16 +227,19 @@ fun SenasATextoScreen() {
                     ) {
                         Column {
                             Text(
-                                text = "Traducción en vivo:",
+                                text = "Traducción detectada:",
                                 fontSize = 12.sp,
                                 color = colorEsquema.onSurfaceVariant,
                             )
                             Spacer(modifier = Modifier.height(4.dp))
-                            // TEXTO DE TRADUCCIÓN REAL
                             Text(
-                                text = if (numeroDetectado.isEmpty()) "Haz una seña con tu mano" else "Número detectado: $numeroDetectado",
+                                text = when (cantidadManos) {
+                                    0 -> "Realiza una seña frente a la cámara"
+                                    1 -> "Seña: $gestoMano1"
+                                    else -> "Mano 1: $gestoMano1 | Mano 2: $gestoMano2"
+                                },
                                 fontSize = 16.sp,
-                                fontWeight = FontWeight.Medium,
+                                fontWeight = FontWeight.Bold,
                                 color = colorEsquema.onSurface,
                             )
                         }
