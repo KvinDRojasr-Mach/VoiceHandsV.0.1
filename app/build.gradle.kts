@@ -2,6 +2,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
+    id("com.google.devtools.ksp")
 }
 
 kotlin {
@@ -56,6 +57,9 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
+        jniLibs {
+            useLegacyPackaging = true
+        }
     }
 }
 
@@ -90,4 +94,10 @@ dependencies {
 
     // Visor 3D (glTF/GLB) con Filament — https://github.com/sceneview/sceneview
     implementation("io.github.sceneview:sceneview:4.1.1")
+
+    // Persistencia local (modelo ER Texto a Señas / animaciones GLB)
+    val roomVersion = "2.7.1"
+    implementation("androidx.room:room-runtime:$roomVersion")
+    implementation("androidx.room:room-ktx:$roomVersion")
+    ksp("androidx.room:room-compiler:$roomVersion")
 }

@@ -31,72 +31,45 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.voicehands.app.VoiceHandsApp
+import com.voicehands.app.data.db.VoiceHandsDbSeeder
+import com.voicehands.app.data.db.entity.DiccionarioSeniaEntity
+import com.voicehands.app.data.repository.AnimacionPlayback
 import com.voicehands.app.ui.components.AvatarLscPanel
 import com.voicehands.app.ui.components.AvatarMotion
 import com.voicehands.app.ui.theme.CelestePrimaryDark
 import com.voicehands.app.ui.theme.CelestePrimaryLight
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
-// -----------------------------------------------------------------------------
-// MODELO DE DATOS
-// -----------------------------------------------------------------------------
-
-private data class SenaComunItem(
-    val id: Int,
-    val etiqueta: String,
-    val emoji: String,
-    val palabrasClave: List<String> = emptyList(),
-)
-
-private val catalogoSenasComunes = listOf(
-    SenaComunItem(1, "Hola", "👋", listOf("hola", "saludo", "buenos")),
-    SenaComunItem(2, "Gracias", "🙏", listOf("gracias", "agradezco")),
-    SenaComunItem(3, "Ayuda", "🆘", listOf("ayuda", "socorro", "sos")),
-    SenaComunItem(4, "Soy Sordo(a)", "👂", listOf("sordo", "sorda", "audición")),
-    SenaComunItem(5, "Agua", "💧", listOf("agua", "sed")),
-    SenaComunItem(6, "Comida", "🍽️", listOf("comida", "comer", "hambre")),
-    SenaComunItem(7, "Baño", "🚻", listOf("baño", "servicio", "wc")),
-    SenaComunItem(8, "Sí", "👍", listOf("sí", "ok", "vale")),
-    SenaComunItem(9, "No", "👎", listOf("no", "negativo")),
-    SenaComunItem(10, "Por favor", "🤲", listOf("por favor", "favor")),
-)
-
-private fun motionDesdeCatalogoId(id: Int): AvatarMotion = when (id) {
-    1 -> AvatarMotion.SALUDO
-    2 -> AvatarMotion.AGRADECIMIENTO
-    3 -> AvatarMotion.AYUDA
-    4 -> AvatarMotion.SORDO
-    5 -> AvatarMotion.AGUA
-    6 -> AvatarMotion.COMIDA
-    7 -> AvatarMotion.BANO
-    8 -> AvatarMotion.SI_GESTO
-    9 -> AvatarMotion.NO_GESTO
-    10 -> AvatarMotion.POR_FAVOR
+private fun motionParaClave(clave: String): AvatarMotion = when (clave) {
+    "hola" -> AvatarMotion.SALUDO
+    "gracias" -> AvatarMotion.AGRADECIMIENTO
+    "ayuda" -> AvatarMotion.AYUDA
+    "soy_sordo" -> AvatarMotion.SORDO
+    "agua" -> AvatarMotion.AGUA
+    "comida" -> AvatarMotion.COMIDA
+    "bano" -> AvatarMotion.BANO
+    "si" -> AvatarMotion.SI_GESTO
+    "no" -> AvatarMotion.NO_GESTO
+    "por_favor" -> AvatarMotion.POR_FAVOR
     else -> AvatarMotion.DESCONOCIDO
-}
-
-private fun motionParaPalabraSuelta(palabraNormalizada: String): AvatarMotion {
-    val p = palabraNormalizada.lowercase()
-    catalogoSenasComunes.forEach { item ->
-        if (item.etiqueta.lowercase() == p) return motionDesdeCatalogoId(item.id)
-        if (item.palabrasClave.any { it.equals(p, ignoreCase = true) }) {
-            return motionDesdeCatalogoId(item.id)
-        }
-    }
-    return AvatarMotion.DESCONOCIDO
 }
 
 private fun tokenizarOracion(texto: String): List<String> {
@@ -118,24 +91,48 @@ private fun tokenizarOracion(texto: String): List<String> {
     return fusionados
 }
 
-// -----------------------------------------------------------------------------
-// PANTALLA PRINCIPAL
-// -----------------------------------------------------------------------------
-
 /**
- * Pestaña **Texto a Señas**: sección **Palabras** (rejilla filtrada) y **Oraciones** (texto libre + traducir).
+ * Resuelve una palabra escrita a la [clave] del diccionario Room (etiqueta o alias).
  */
+private suspend fun resolverClaveDesdeToken(
+    token: String,
+    senias: List<DiccionarioSeniaEntity>,
+    getAliases: suspend (Long) -> List<String>,
+): String? {
+    val t = token.lowercase().trim()
+    senias.firstOrNull { it.clave.equals(t, ignoreCase = true) }?.let { return it.clave }
+    senias.firstOrNull { it.palabraFrase.equals(t, ignoreCase = true) }?.let { return it.clave }
+    for (s in senias) {
+        val aliases = getAliases(s.idSenia)
+        if (aliases.any { it.equals(t, ignoreCase = true) }) return s.clave
+    }
+    return null
+}
+
 @Composable
 fun TextoAsenasScreen(
     consultaBuscador: String,
     onMostrarBuscadorCabecera: (Boolean) -> Unit = {},
 ) {
+    val context = LocalContext.current
+    val app = context.applicationContext as VoiceHandsApp
+    val repo = app.senasRepository
+    val scope = rememberCoroutineScope()
+
     var pestaña by rememberSaveable { mutableIntStateOf(0) }
     SideEffect { onMostrarBuscadorCabecera(pestaña == 0) }
 
-    var itemPalabraSeleccionada by remember { mutableStateOf<SenaComunItem?>(null) }
-    /** Reinicia el motor 3D al elegir otra tarjeta (aunque el gesto lógico sea similar). */
+    val senas by repo.observeSenasFiltradas(consultaBuscador).collectAsState(initial = emptyList())
+    val todasActivas by repo.observeSenasActivas().collectAsState(initial = emptyList())
+
+    LaunchedEffect(Unit) {
+        // Garantiza el seed aunque la UI abra antes que Application termine el insert.
+        VoiceHandsDbSeeder.seedIfEmpty(app.database)
+    }
+
+    var itemSeleccionado by remember { mutableStateOf<DiccionarioSeniaEntity?>(null) }
     var revisionAvatarPalabras by remember { mutableIntStateOf(0) }
+    var playbackSeleccionado by remember { mutableStateOf<AnimacionPlayback?>(null) }
 
     var textoOracion by rememberSaveable { mutableStateOf("") }
     var tituloAvatarOracion by remember { mutableStateOf("Oración a señas") }
@@ -145,6 +142,11 @@ fun TextoAsenasScreen(
     var secuenciaOracion by remember { mutableStateOf<List<Pair<String, AvatarMotion>>>(emptyList()) }
     var revisionAvatarOracion by remember { mutableIntStateOf(0) }
 
+    LaunchedEffect(itemSeleccionado?.idSenia) {
+        val sel = itemSeleccionado
+        playbackSeleccionado = if (sel == null) null else repo.getAnimacionParaClave(sel.clave)
+    }
+
     LaunchedEffect(jobSecuencia) {
         if (secuenciaOracion.isEmpty()) return@LaunchedEffect
         for ((palabra, motion) in secuenciaOracion) {
@@ -152,9 +154,9 @@ fun TextoAsenasScreen(
             tituloAvatarOracion = palabra
             motionOracion = motion
             subtituloAvatarOracion = if (motion == AvatarMotion.DESCONOCIDO) {
-                "Sin equivalencia en el diccionario demo; gesto neutro."
+                "Sin equivalencia en el diccionario; gesto neutro."
             } else {
-                "Entrada del diccionario demo (referencia LSC-CO orientativa)."
+                "Entrada del diccionario Room (anim. GLB pendiente o placeholder)."
             }
             delay(1350)
         }
@@ -164,26 +166,21 @@ fun TextoAsenasScreen(
         subtituloAvatarOracion = "Puedes editar el texto y pulsar Traducir de nuevo."
     }
 
-    val senasFiltradas = remember(consultaBuscador) {
-        val q = consultaBuscador.trim()
-        if (q.isEmpty()) catalogoSenasComunes
-        else catalogoSenasComunes.filter { item ->
-            item.etiqueta.contains(q, ignoreCase = true) ||
-                item.palabrasClave.any { it.contains(q, ignoreCase = true) }
-        }
-    }
-
-    val (tituloAvatarPalabras, motionPalabras, subPalabras) = when (val sel = itemPalabraSeleccionada) {
+    val (tituloAvatarPalabras, motionPalabras, subPalabras) = when (val sel = itemSeleccionado) {
         null -> Triple(
             "Palabra",
             AvatarMotion.NEUTRAL,
             "Elige una palabra de la lista para ver la seña ilustrada.",
         )
-        else -> Triple(
-            sel.etiqueta,
-            motionDesdeCatalogoId(sel.id),
-            "Entrada del diccionario demo (referencia LSC-CO orientativa).",
-        )
+        else -> {
+            val pb = playbackSeleccionado
+            val glbNote = when {
+                pb == null -> "Buscando animación en BD…"
+                pb.tieneGlb -> "GLB: ${pb.assetPathOrNull}"
+                else -> "Animación GLB pendiente (clave=${sel.clave}). Idle del avatar."
+            }
+            Triple(sel.palabraFrase, motionParaClave(sel.clave), glbNote)
+        }
     }
 
     Column(
@@ -240,12 +237,12 @@ fun TextoAsenasScreen(
                             verticalArrangement = Arrangement.spacedBy(12.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
-                            items(senasFiltradas, key = { it.id }) { item ->
-                                TarjetaSenaComun(
+                            items(senas, key = { it.idSenia }) { item ->
+                                TarjetaSenaDb(
                                     item = item,
-                                    seleccionada = itemPalabraSeleccionada?.id == item.id,
+                                    seleccionada = itemSeleccionado?.idSenia == item.idSenia,
                                     onClick = {
-                                        itemPalabraSeleccionada = item
+                                        itemSeleccionado = item
                                         revisionAvatarPalabras++
                                     },
                                 )
@@ -271,18 +268,30 @@ fun TextoAsenasScreen(
                         Spacer(modifier = Modifier.height(12.dp))
                         Button(
                             onClick = {
-                                val tokens = tokenizarOracion(textoOracion)
-                                if (tokens.isEmpty()) {
-                                    revisionAvatarOracion++
-                                    tituloAvatarOracion = "Sin texto"
-                                    subtituloAvatarOracion = "Escribe al menos una palabra."
-                                    motionOracion = AvatarMotion.NEUTRAL
-                                    secuenciaOracion = emptyList()
-                                } else {
-                                    secuenciaOracion = tokens.map { t ->
-                                        t to motionParaPalabraSuelta(t)
+                                scope.launch {
+                                    val tokens = tokenizarOracion(textoOracion)
+                                    if (tokens.isEmpty()) {
+                                        revisionAvatarOracion++
+                                        tituloAvatarOracion = "Sin texto"
+                                        subtituloAvatarOracion = "Escribe al menos una palabra."
+                                        motionOracion = AvatarMotion.NEUTRAL
+                                        secuenciaOracion = emptyList()
+                                    } else {
+                                        secuenciaOracion = tokens.map { token ->
+                                            val clave = resolverClaveDesdeToken(
+                                                token = token,
+                                                senias = todasActivas,
+                                                getAliases = { id -> repo.getAliases(id) },
+                                            )
+                                            val motion = if (clave != null) {
+                                                motionParaClave(clave)
+                                            } else {
+                                                AvatarMotion.DESCONOCIDO
+                                            }
+                                            token to motion
+                                        }
+                                        jobSecuencia++
                                     }
-                                    jobSecuencia++
                                 }
                             },
                             modifier = Modifier.fillMaxWidth(),
@@ -306,8 +315,8 @@ fun TextoAsenasScreen(
 }
 
 @Composable
-private fun TarjetaSenaComun(
-    item: SenaComunItem,
+private fun TarjetaSenaDb(
+    item: DiccionarioSeniaEntity,
     seleccionada: Boolean,
     onClick: () -> Unit,
 ) {
@@ -340,11 +349,11 @@ private fun TarjetaSenaComun(
                     .background(CelestePrimaryLight.copy(alpha = 0.55f)),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(text = item.emoji, fontSize = 28.sp)
+                Text(text = item.emoji.ifBlank { "🤟" }, fontSize = 28.sp)
             }
             Spacer(modifier = Modifier.height(10.dp))
             Text(
-                text = item.etiqueta,
+                text = item.palabraFrase,
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                 color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center,
