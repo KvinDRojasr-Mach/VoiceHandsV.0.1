@@ -3,6 +3,7 @@ package com.voicehands.app
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -16,11 +17,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -80,6 +84,7 @@ import com.voicehands.app.ui.theme.VoiceHandsTheme
 // =============================================================================
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         // setContent: todo lo que pongamos aquí es interfaz Compose (no layouts XML).
         setContent {
@@ -153,6 +158,8 @@ private fun AppIniPantalla(onIniciar: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .background(colorCabecera)
+            .statusBarsPadding()
+            .navigationBarsPadding()
             .padding(horizontal = 28.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -234,12 +241,14 @@ fun VoiceHandsHome(
 
     // Scaffold: plantilla con ranuras topBar, bottomBar y el cuerpo (lambda final con innerPadding).
     Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             // Column en la cabecera: primera fila título + tema; segunda fila opcional = buscador.
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(colorBarraMarca),
+                    .background(colorBarraMarca)
+                    .statusBarsPadding(),
             ) {
                 // Fila superior: nombre de la app a la izquierda, interruptor de tema a la derecha.
                 Row(
@@ -318,6 +327,7 @@ fun VoiceHandsHome(
         bottomBar = {
             // NavigationBar: barra inferior de Material3 con tres destinos (pestañas).
             NavigationBar(
+                modifier = Modifier.navigationBarsPadding(),
                 containerColor = colorBarraMarca,
                 tonalElevation = 6.dp,
             ) {
@@ -381,7 +391,14 @@ fun VoiceHandsHome(
                 )
             }
             composable("senas_a_texto") { SenasATextoScreen() }
-            composable("config") { ConfigScreen() }
+            composable("config") {
+                ConfigScreen(
+                    temaOscuro = temaOscuro,
+                    onTemaOscuroChange = { activo ->
+                        if (activo != temaOscuro) onToggleTema()
+                    },
+                )
+            }
         }
     }
 }

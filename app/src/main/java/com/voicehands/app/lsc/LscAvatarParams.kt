@@ -5,6 +5,7 @@ import com.voicehands.app.ui.components.AvatarMotion
 /**
  * Cámara fija de frente: personaje centrado, borde inferior a la cintura (plano americano).
  * [centerOriginY] 0 = centro del AABB (cadera/cintura en un humanoide de pie).
+ * [modelPosY] negativo baja el modelo para dejar margen al cabello bajo el borde superior.
  */
 object EncuadreAvatarFijo {
     const val camX = 0f
@@ -13,10 +14,11 @@ object EncuadreAvatarFijo {
     const val lookX = 0f
     const val lookY = 0.38f
     const val lookZ = 0f
-    const val scaleToUnits = 1.80f
+    const val scaleToUnits = 1.72f
     const val centerOriginY = 0f
     const val modelPosX = 0f
-    const val modelPosY = 0f
+    /** Baja el avatar en el viewport para que el cabello no se corte. */
+    const val modelPosY = -0.10f
     const val modelPosZ = 0f
 }
 
