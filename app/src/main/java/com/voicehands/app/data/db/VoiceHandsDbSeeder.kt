@@ -5,6 +5,7 @@ import com.voicehands.app.data.db.entity.Animacion3dEntity
 import com.voicehands.app.data.db.entity.AvatarRigEntity
 import com.voicehands.app.data.db.entity.CategoriaEntity
 import com.voicehands.app.data.db.entity.DiccionarioSeniaEntity
+import com.voicehands.app.lsc.AvatarAssets
 
 /**
  * Carga inicial del diccionario demo + rig quemado.
@@ -45,9 +46,9 @@ object VoiceHandsDbSeeder {
 
         val idRig = db.avatarRigDao().insert(
             AvatarRigEntity(
-                codigo = "avatar_v1",
-                nombre = "Avatar VoiceHands v1",
-                archivoAvatarGlb = "models/avatar_rigged.glb",
+                codigo = AvatarAssets.RIG_CODIGO,
+                nombre = "Avatar masculino base",
+                archivoAvatarGlb = AvatarAssets.BASE_GLB,
                 clipIdle = "idle",
                 activo = true,
             ),
@@ -87,5 +88,15 @@ object VoiceHandsDbSeeder {
 
         db.aliasBusquedaDao().insertAll(aliases)
         db.animacion3dDao().insertAll(animaciones)
+    }
+
+    /** Actualiza el path del avatar quemado si la BD ya existía con el GLB anterior. */
+    suspend fun ensureAvatarBase(db: VoiceHandsDatabase) {
+        seedIfEmpty(db)
+        db.avatarRigDao().updateArchivo(
+            codigo = AvatarAssets.RIG_CODIGO,
+            path = AvatarAssets.BASE_GLB,
+            nombre = "Avatar masculino base",
+        )
     }
 }

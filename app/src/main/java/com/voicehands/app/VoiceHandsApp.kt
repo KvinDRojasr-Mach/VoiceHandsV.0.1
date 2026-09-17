@@ -23,7 +23,7 @@ class VoiceHandsApp : Application() {
         database = VoiceHandsDatabase.getInstance(this)
         senasRepository = SenasRepository(database)
         appScope.launch {
-            VoiceHandsDbSeeder.seedIfEmpty(database)
+            VoiceHandsDbSeeder.ensureAvatarBase(database)
         }
     }
 }

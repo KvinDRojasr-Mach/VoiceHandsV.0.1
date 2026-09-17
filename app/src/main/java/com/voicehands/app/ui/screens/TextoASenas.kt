@@ -51,6 +51,7 @@ import com.voicehands.app.VoiceHandsApp
 import com.voicehands.app.data.db.VoiceHandsDbSeeder
 import com.voicehands.app.data.db.entity.DiccionarioSeniaEntity
 import com.voicehands.app.data.repository.AnimacionPlayback
+import com.voicehands.app.lsc.AvatarAssets
 import com.voicehands.app.ui.components.AvatarLscPanel
 import com.voicehands.app.ui.components.AvatarMotion
 import com.voicehands.app.ui.theme.CelestePrimaryDark
@@ -126,8 +127,7 @@ fun TextoAsenasScreen(
     val todasActivas by repo.observeSenasActivas().collectAsState(initial = emptyList())
 
     LaunchedEffect(Unit) {
-        // Garantiza el seed aunque la UI abra antes que Application termine el insert.
-        VoiceHandsDbSeeder.seedIfEmpty(app.database)
+        VoiceHandsDbSeeder.ensureAvatarBase(app.database)
     }
 
     var itemSeleccionado by remember { mutableStateOf<DiccionarioSeniaEntity?>(null) }
@@ -166,20 +166,28 @@ fun TextoAsenasScreen(
         subtituloAvatarOracion = "Puedes editar el texto y pulsar Traducir de nuevo."
     }
 
-    val (tituloAvatarPalabras, motionPalabras, subPalabras) = when (val sel = itemSeleccionado) {
-        null -> Triple(
-            "Palabra",
-            AvatarMotion.NEUTRAL,
-            "Elige una palabra de la lista para ver la seña ilustrada.",
-        )
+    val tituloPalabras: String
+    val motionPalabrasTyped: AvatarMotion
+    val subPalabrasTyped: String
+    val pathPalabrasTyped: String
+    when (val sel = itemSeleccionado) {
+        null -> {
+            tituloPalabras = "Palabra"
+            motionPalabrasTyped = AvatarMotion.NEUTRAL
+            subPalabrasTyped = "Elige una palabra de la lista. El avatar permanece en espera."
+            pathPalabrasTyped = AvatarAssets.BASE_GLB
+        }
         else -> {
             val pb = playbackSeleccionado
-            val glbNote = when {
+            val tieneGlb = pb?.tieneGlb == true
+            tituloPalabras = sel.palabraFrase
+            motionPalabrasTyped = if (tieneGlb) motionParaClave(sel.clave) else AvatarMotion.NEUTRAL
+            pathPalabrasTyped = pb?.assetPathOrNull ?: AvatarAssets.BASE_GLB
+            subPalabrasTyped = when {
                 pb == null -> "Buscando animación en BD…"
-                pb.tieneGlb -> "GLB: ${pb.assetPathOrNull}"
-                else -> "Animación GLB pendiente (clave=${sel.clave}). Idle del avatar."
+                tieneGlb -> "Reproduciendo seña: ${pb.assetPathOrNull}"
+                else -> "Sin GLB de seña aún (clave=${sel.clave}). Avatar en espera."
             }
-            Triple(sel.palabraFrase, motionParaClave(sel.clave), glbNote)
         }
     }
 
@@ -218,10 +226,11 @@ fun TextoAsenasScreen(
                 when (pestaña) {
                     0 -> {
                         AvatarLscPanel(
-                            tituloSeña = tituloAvatarPalabras,
-                            subtitulo = subPalabras,
-                            motion = motionPalabras,
+                            tituloSeña = tituloPalabras,
+                            subtitulo = subPalabrasTyped,
+                            motion = motionPalabrasTyped,
                             sceneRevision = revisionAvatarPalabras,
+                            assetPath = pathPalabrasTyped,
                             modifier = Modifier.padding(bottom = 12.dp),
                         )
                         Text(
@@ -305,6 +314,7 @@ fun TextoAsenasScreen(
                             subtitulo = subtituloAvatarOracion,
                             motion = motionOracion,
                             sceneRevision = revisionAvatarOracion,
+                            assetPath = AvatarAssets.BASE_GLB,
                             modifier = Modifier.weight(1f),
                         )
                     }

@@ -8,6 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import com.voicehands.app.lsc.EncuadreAvatarFijo
 import com.voicehands.app.lsc.PerfilGesto3d
+import com.voicehands.app.lsc.AvatarAssets
 import com.voicehands.app.lsc.perfilGestoParaMotion
 import io.github.sceneview.SceneView
 import io.github.sceneview.SurfaceType
@@ -19,7 +20,7 @@ import io.github.sceneview.rememberModelInstance
 
 /**
  * Personaje 3D (glTF/GLB) con cámara fija de cintura a cabeza.
- * El GLB de ejemplo tiene una sola animación; [sceneRevision] reinicia el clip al cambiar de palabra.
+ * Por defecto carga el avatar base en idle; [assetPath] puede ser un GLB de seña.
  */
 @Composable
 fun SignAvatar3D(
@@ -28,7 +29,7 @@ fun SignAvatar3D(
     perfil: PerfilGesto3d = perfilGestoParaMotion(motion),
     /** Incrementar al cambiar de token en una oración aunque el [motion] se repita. */
     sceneRevision: Int = 0,
-    assetPath: String = "models/avatar_rigged.glb",
+    assetPath: String = AvatarAssets.BASE_GLB,
 ) {
     val encuadre = EncuadreAvatarFijo
     val engine = rememberEngine()
@@ -38,7 +39,7 @@ fun SignAvatar3D(
     }
 
     Box(modifier = modifier) {
-        key(sceneRevision) {
+        key(sceneRevision, assetPath) {
             SceneView(
                 modifier = Modifier.fillMaxSize(),
                 engine = engine,
@@ -54,8 +55,13 @@ fun SignAvatar3D(
                         animationLoop = true,
                         animationSpeed = perfil.animationSpeed,
                         scaleToUnits = encuadre.scaleToUnits,
-                        // Pies en el origen para que la cámara (pecho) recorte de cintura a cabeza.
-                        centerOrigin = Position(y = -1f),
+                        // Cadera/cintura en el origen: el borde inferior del visor corta a la cintura.
+                        centerOrigin = Position(x = 0f, y = encuadre.centerOriginY, z = 0f),
+                        position = Position(
+                            x = encuadre.modelPosX,
+                            y = encuadre.modelPosY,
+                            z = encuadre.modelPosZ,
+                        ),
                     )
                 }
             }

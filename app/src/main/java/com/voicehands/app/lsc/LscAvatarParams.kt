@@ -3,17 +3,21 @@ package com.voicehands.app.lsc
 import com.voicehands.app.ui.components.AvatarMotion
 
 /**
- * Cámara fija de frente, plano americano (cintura a cabeza).
- * El origen del GLB se asume en los pies; [lookY] apunta al pecho.
+ * Cámara fija de frente: personaje centrado, borde inferior a la cintura (plano americano).
+ * [centerOriginY] 0 = centro del AABB (cadera/cintura en un humanoide de pie).
  */
 object EncuadreAvatarFijo {
     const val camX = 0f
-    const val camY = 1.22f
-    const val camZ = 0.92f
+    const val camY = 0.40f
+    const val camZ = 1.18f
     const val lookX = 0f
-    const val lookY = 1.14f
+    const val lookY = 0.38f
     const val lookZ = 0f
-    const val scaleToUnits = 1.70f
+    const val scaleToUnits = 1.80f
+    const val centerOriginY = 0f
+    const val modelPosX = 0f
+    const val modelPosY = 0f
+    const val modelPosZ = 0f
 }
 
 /**

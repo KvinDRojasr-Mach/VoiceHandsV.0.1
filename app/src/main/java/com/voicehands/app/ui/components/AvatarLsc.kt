@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.voicehands.app.lsc.AvatarAssets
 import com.voicehands.app.lsc.perfilGestoParaMotion
 
 /**
@@ -47,6 +48,8 @@ fun AvatarLscPanel(
     modifier: Modifier = Modifier,
     /** Cambia al avanzar palabra en oración o al pulsar otra tarjeta para reiniciar el clip 3D. */
     sceneRevision: Int = 0,
+    /** GLB a mostrar: avatar base (idle) o seña de la BD. */
+    assetPath: String = AvatarAssets.BASE_GLB,
 ) {
     val perfil = perfilGestoParaMotion(motion)
     Surface(
@@ -85,21 +88,22 @@ fun AvatarLscPanel(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(220.dp),
+                    .height(260.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 SignAvatar3D(
                     motion = motion,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(220.dp),
+                        .height(260.dp),
                     perfil = perfil,
                     sceneRevision = sceneRevision,
+                    assetPath = assetPath,
                 )
             }
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = "Animación genérica en un solo GLB; la LSC real requiere clips o vídeo por seña validados. Glosas arriba son orientativas.",
+                text = "Avatar base en espera. Al registrar un GLB de seña en la BD, se reproduce en este visor.",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
                 textAlign = TextAlign.Center,

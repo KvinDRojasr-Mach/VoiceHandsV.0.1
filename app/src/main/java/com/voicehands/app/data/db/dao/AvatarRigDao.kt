@@ -16,4 +16,13 @@ interface AvatarRigDao {
 
     @Query("SELECT * FROM avatar_rig WHERE codigo = :codigo LIMIT 1")
     suspend fun getByCodigo(codigo: String): AvatarRigEntity?
+
+    @Query(
+        """
+        UPDATE avatar_rig
+        SET archivoAvatarGlb = :path, nombre = :nombre
+        WHERE codigo = :codigo
+        """,
+    )
+    suspend fun updateArchivo(codigo: String, path: String, nombre: String)
 }
