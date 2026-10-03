@@ -19,11 +19,17 @@ object VoiceHandsDbSeeder {
         val emoji: String,
         val aliases: List<String>,
         val orden: Int,
+        val urlGlb: String = "" // <-- NUEVO: Agregamos la ruta aquí (por defecto vacía)
     )
 
     private val seniasDemo = listOf(
-        SeedSenia("hola", "Hola", "👋", listOf("hola", "saludo", "buenos"), 1),
-        SeedSenia("gracias", "Gracias", "🙏", listOf("gracias", "agradezco"), 2),
+        // Ya teníamos configurado el Hola:
+        SeedSenia("hola", "Hola", "👋", listOf("hola", "saludo", "buenos"), 1, "models/hola_default.glb"),
+
+        // AQUI AGREGAMOS LA RUTA PARA GRACIAS:
+        SeedSenia("gracias", "Gracias", "🙏", listOf("gracias", "agradezco"), 2, "models/Gracias_default.glb"),
+
+        // Las demás siguen igual (vacías) por ahora:
         SeedSenia("ayuda", "Ayuda", "🆘", listOf("ayuda", "socorro", "sos"), 3),
         SeedSenia("soy_sordo", "Soy Sordo(a)", "👂", listOf("sordo", "sorda", "audición"), 4),
         SeedSenia("agua", "Agua", "💧", listOf("agua", "sed"), 5),
@@ -35,6 +41,7 @@ object VoiceHandsDbSeeder {
     )
 
     suspend fun seedIfEmpty(db: VoiceHandsDatabase) {
+        // Si la base de datos ya tiene datos, no hace nada (por eso hay que borrarla para ver cambios)
         if (db.diccionarioSeniaDao().count() > 0) return
 
         val idCategoria = db.categoriaDao().insert(
@@ -73,12 +80,13 @@ object VoiceHandsDbSeeder {
             seed.aliases.forEach { alias ->
                 aliases += AliasBusquedaEntity(idSenia = idSenia, alias = alias)
             }
-            // Placeholder: misma clave como clip; urlGlb vacío hasta tener el archivo real.
+
+            // <-- AQUI REEMPLAZAMOS EL STRING VACIO POR LA VARIABLE
             animaciones += Animacion3dEntity(
                 idSenia = idSenia,
                 idRig = idRig,
                 clipName = seed.clave,
-                urlGlb = "",
+                urlGlb = seed.urlGlb,
                 formato = "glb",
                 duracionMs = 1350,
                 version = 1,

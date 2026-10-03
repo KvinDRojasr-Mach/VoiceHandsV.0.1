@@ -2,47 +2,21 @@ package com.voicehands.app.ui.screens
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.speech.tts.TextToSpeech
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
 import androidx.camera.view.LifecycleCameraController
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Cameraswitch
-import androidx.compose.material.icons.outlined.PhotoCamera
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -51,9 +25,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
-
 import com.voicehands.app.analyzer.HandAnalyzer
 import com.voicehands.app.analyzer.InfoMano
+import com.voicehands.app.ui.components.HandOverlayView
+import java.util.Locale
 
 @Composable
 fun SenasATextoScreen() {
@@ -71,11 +46,68 @@ fun SenasATextoScreen() {
     var manoIzquierdaInfo by remember { mutableStateOf(InfoMano()) }
     var manoDerechaInfo by remember { mutableStateOf(InfoMano()) }
 
-    val analyzer = remember {
+    var textoConstruido by remember { mutableStateOf("") }
+    var ultimaLetraConfirmada by remember { mutableStateOf("") }
+    var vozActivaEnTiempoReal by remember { mutableStateOf(false) }
+    var ttsEngine by remember { mutableStateOf<TextToSpeech?>(null) }
+
+    DisposableEffect(context) {
+        val ttsInstance = TextToSpeech(context) { status ->
+            if (status == TextToSpeech.SUCCESS) {
+                ttsEngine?.language = Locale("es", "CO")
+            }
+        }
+        ttsEngine = ttsInstance
+        onDispose {
+            ttsInstance.stop()
+            ttsInstance.shutdown()
+        }
+    }
+
+    val caracterActual = when {
+        manoDerechaInfo.letra != "-" -> manoDerechaInfo.letra
+        manoIzquierdaInfo.letra != "-" -> manoIzquierdaInfo.letra
+        manoDerechaInfo.numero != "-" -> manoDerechaInfo.numero
+        manoIzquierdaInfo.numero != "-" -> manoIzquierdaInfo.numero
+        else -> "-"
+    }
+
+    LaunchedEffect(caracterActual) {
+        if (caracterActual != "-") {
+            kotlinx.coroutines.delay(300)
+            if (caracterActual != ultimaLetraConfirmada) {
+                textoConstruido += caracterActual
+                if (vozActivaEnTiempoReal) {
+                    ttsEngine?.speak(caracterActual, TextToSpeech.QUEUE_FLUSH, null, null)
+                }
+                ultimaLetraConfirmada = caracterActual
+            }
+        } else {
+            if (textoConstruido.isNotEmpty() && !textoConstruido.endsWith(" ")) {
+                kotlinx.coroutines.delay(2000)
+                if (caracterActual == "-") {
+                    textoConstruido += " "
+                }
+            }
+            ultimaLetraConfirmada = ""
+        }
+    }
+
+    val overlayView = remember { HandOverlayView(context) }
+
+    // CAMBIO 1: Saber si la cámara activa es la frontal
+    val isFrontal = (cameraSelector == CameraSelector.DEFAULT_FRONT_CAMERA)
+
+    // CAMBIO 2: Recargar el analizador cuando cambia cameraSelector
+    val analyzer = remember(cameraSelector) {
         HandAnalyzer(
             context = context,
-            onGesturesDetected = { izq, der, total ->
+            onGesturesDetected = { izq, der, total, landmarks ->
                 cantidadManos = total
+
+                // Pasarle la bandera isFrontal al overlay
+                overlayView.setLandmarks(landmarks, isFrontal)
+
                 if (total == 0) {
                     manoIzquierdaInfo = InfoMano()
                     manoDerechaInfo = InfoMano()
@@ -89,13 +121,13 @@ fun SenasATextoScreen() {
 
     var hasCameraPermission by remember {
         mutableStateOf(
-            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED,
+            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
         )
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
-        onResult = { isGranted -> hasCameraPermission = isGranted },
+        onResult = { isGranted -> hasCameraPermission = isGranted }
     )
 
     val colorEsquema = MaterialTheme.colorScheme
@@ -104,27 +136,24 @@ fun SenasATextoScreen() {
         modifier = Modifier
             .fillMaxSize()
             .background(colorEsquema.background)
-            .padding(16.dp),
+            .padding(10.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
+        // CÁMARA Y ESQUELETO
         Card(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f),
-            shape = RoundedCornerShape(24.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-            colors = CardDefaults.cardColors(containerColor = colorEsquema.surfaceVariant),
+            shape = RoundedCornerShape(20.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color(0xFF2C2C2C)),
-            ) {
+            Box(modifier = Modifier.fillMaxSize().background(Color(0xFF1A1A1A))) {
                 if (hasCameraPermission) {
                     AndroidView(
                         factory = { ctx ->
                             PreviewView(ctx).apply {
+                                scaleType = PreviewView.ScaleType.FILL_CENTER
                                 controller = cameraController
                                 cameraController.setImageAnalysisAnalyzer(
                                     ContextCompat.getMainExecutor(ctx),
@@ -133,211 +162,168 @@ fun SenasATextoScreen() {
                                 cameraController.bindToLifecycle(lifecycleOwner)
                             }
                         },
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier.fillMaxSize()
+                    )
+
+                    AndroidView(
+                        factory = { overlayView },
+                        modifier = Modifier.fillMaxSize()
                     )
                 } else {
-                    Text(
-                        text = "La cámara está desactivada",
-                        color = colorEsquema.onSurfaceVariant,
-                        modifier = Modifier.align(Alignment.Center),
-                    )
-                }
-
-                // BARRA SUPERIOR
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color.Black.copy(alpha = 0.5f))
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = if (cantidadManos == 0) "Esperando señas..." else "Detección Dual Activa",
-                        color = Color.White,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = if (cantidadManos > 0) "Detectando" else "Buscando...",
-                            color = if (cantidadManos > 0) Color(0xFF4CAF50) else Color.Yellow,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .clip(CircleShape)
-                                .background(if (cantidadManos > 0) Color(0xFF4CAF50) else Color.Yellow),
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-
-                        IconButton(
-                            onClick = {
-                                cameraSelector = if (cameraSelector == CameraSelector.DEFAULT_FRONT_CAMERA) {
-                                    CameraSelector.DEFAULT_BACK_CAMERA
-                                } else {
-                                    CameraSelector.DEFAULT_FRONT_CAMERA
-                                }
-                            }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Cameraswitch,
-                                contentDescription = "Cambiar cámara",
-                                tint = Color.White
-                            )
-                        }
+                    Button(
+                        onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) },
+                        modifier = Modifier.align(Alignment.Center)
+                    ) {
+                        Text("Conceder Permiso de Cámara")
                     }
                 }
 
-                // CHIP CONTEO
-                Surface(
-                    modifier = Modifier
-                        .padding(top = 75.dp, start = 16.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    color = if (cantidadManos > 0) Color(0xFF4CAF50) else Color.Gray,
-                ) {
-                    Text(
-                        text = "● $cantidadManos Mano(s) Detectada(s)",
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                        fontSize = 12.sp,
-                    )
-                }
-
-                // TARJETA INFERIOR TRADUCCIÓN SIMULTÁNEA
-                Card(
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .align(Alignment.BottomCenter)
-                        .padding(16.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = colorEsquema.surface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                        .background(Color.Black.copy(alpha = 0.6f))
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceEvenly,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            // BLOQUE MANO IZQUIERDA
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    text = "👈 Izquierda",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = colorEsquema.primary
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text("Letra", fontSize = 10.sp, color = colorEsquema.onSurfaceVariant)
-                                        Text(
-                                            text = manoIzquierdaInfo.letra,
-                                            fontSize = 22.sp,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            color = colorEsquema.secondary
-                                        )
-                                    }
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text("Número", fontSize = 10.sp, color = colorEsquema.onSurfaceVariant)
-                                        Text(
-                                            text = manoIzquierdaInfo.numero,
-                                            fontSize = 22.sp,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            color = colorEsquema.tertiary
-                                        )
-                                    }
-                                }
-                            }
-
-                            Box(
-                                modifier = Modifier
-                                    .width(1.dp)
-                                    .height(40.dp)
-                                    .background(colorEsquema.outlineVariant)
-                            )
-
-                            // BLOQUE MANO DERECHA
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    text = "👉 Derecha",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = colorEsquema.primary
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text("Letra", fontSize = 10.sp, color = colorEsquema.onSurfaceVariant)
-                                        Text(
-                                            text = manoDerechaInfo.letra,
-                                            fontSize = 22.sp,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            color = colorEsquema.secondary
-                                        )
-                                    }
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text("Número", fontSize = 10.sp, color = colorEsquema.onSurfaceVariant)
-                                        Text(
-                                            text = manoDerechaInfo.numero,
-                                            fontSize = 22.sp,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            color = colorEsquema.tertiary
-                                        )
-                                    }
-                                }
+                    Text(
+                        text = if (cantidadManos == 0) "Esperando mano..." else "Detectando ($cantidadManos mano/s)",
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    IconButton(
+                        onClick = {
+                            cameraSelector = if (cameraSelector == CameraSelector.DEFAULT_FRONT_CAMERA) {
+                                CameraSelector.DEFAULT_BACK_CAMERA
+                            } else {
+                                CameraSelector.DEFAULT_FRONT_CAMERA
                             }
                         }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Text(
-                            text = "IA Raw: Izq [${manoIzquierdaInfo.rawLabel}] | Der [${manoDerechaInfo.rawLabel}]",
-                            fontSize = 10.sp,
-                            color = Color.Gray,
-                            fontWeight = FontWeight.Medium
-                        )
+                    ) {
+                        Icon(Icons.Outlined.Cameraswitch, contentDescription = null, tint = Color.White)
                     }
                 }
             }
         }
 
-        Button(
-            onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
-            shape = RoundedCornerShape(50),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = colorEsquema.surface,
-                contentColor = colorEsquema.primary,
-            ),
-            elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp),
+        // MONITOR DE DETECCIÓN INSTANTÁNEA Y VOZ
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp),
+            colors = CardDefaults.cardColors(containerColor = colorEsquema.surfaceVariant)
         ) {
-            Icon(
-                imageVector = Icons.Outlined.PhotoCamera,
-                contentDescription = null,
-                modifier = Modifier.size(24.dp),
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = if (hasCameraPermission) "Detección Activa" else "Iniciar Detección",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(10.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("👈 Izquierda", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = colorEsquema.primary)
+                    Text("Letra: ${manoIzquierdaInfo.letra}", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                }
+
+                HorizontalDivider(modifier = Modifier.height(24.dp).width(1.dp))
+
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("👉 Derecha", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = colorEsquema.primary)
+                    Text("Letra: ${manoDerechaInfo.letra}", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                }
+
+                HorizontalDivider(modifier = Modifier.height(24.dp).width(1.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Voz", fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Switch(
+                        checked = vozActivaEnTiempoReal,
+                        onCheckedChange = { vozActivaEnTiempoReal = it }
+                    )
+                }
+            }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        // PANEL DE FRASE Y CONTROLES
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp),
+            colors = CardDefaults.cardColors(containerColor = colorEsquema.surface)
+        ) {
+            Column(
+                modifier = Modifier.padding(10.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Texto / Frase Acumulada:",
+                    fontSize = 10.sp,
+                    color = colorEsquema.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+
+                Text(
+                    text = if (textoConstruido.isEmpty()) "Haz señas para escribir..." else textoConstruido,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (textoConstruido.isEmpty()) Color.Gray else colorEsquema.primary
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    Button(
+                        onClick = {
+                            if (caracterActual != "-") {
+                                textoConstruido += caracterActual
+                                if (vozActivaEnTiempoReal) {
+                                    ttsEngine?.speak(caracterActual, TextToSpeech.QUEUE_FLUSH, null, null)
+                                }
+                            }
+                        },
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = colorEsquema.secondary)
+                    ) {
+                        Text("Añadir", fontSize = 11.sp)
+                    }
+
+                    OutlinedButton(
+                        onClick = { textoConstruido += " " },
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("Espacio", fontSize = 11.sp)
+                    }
+
+                    OutlinedButton(
+                        onClick = { if (textoConstruido.isNotEmpty()) textoConstruido = textoConstruido.dropLast(1) },
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("Borrar", fontSize = 11.sp)
+                    }
+
+                    Button(
+                        onClick = {
+                            if (textoConstruido.isNotEmpty()) {
+                                ttsEngine?.speak(textoConstruido, TextToSpeech.QUEUE_FLUSH, null, null)
+                            }
+                        },
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(Icons.Outlined.VolumeUp, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Text("Voz", fontSize = 11.sp)
+                    }
+
+                    IconButton(
+                        onClick = { textoConstruido = "" }
+                    ) {
+                        Icon(Icons.Outlined.Delete, contentDescription = null, tint = Color.Red)
+                    }
+                }
+            }
+        }
     }
 }

@@ -6,7 +6,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
-import com.voicehands.app.lsc.EncuadreAvatarFijo
 import com.voicehands.app.lsc.PerfilGesto3d
 import com.voicehands.app.lsc.AvatarAssets
 import com.voicehands.app.lsc.perfilGestoParaMotion
@@ -18,24 +17,20 @@ import io.github.sceneview.rememberCameraNode
 import io.github.sceneview.rememberEngine
 import io.github.sceneview.rememberModelInstance
 
-/**
- * Personaje 3D (glTF/GLB) con cámara fija de cintura a cabeza.
- * Por defecto carga el avatar base en idle; [assetPath] puede ser un GLB de seña.
- */
 @Composable
 fun SignAvatar3D(
     motion: AvatarMotion,
     modifier: Modifier = Modifier,
     perfil: PerfilGesto3d = perfilGestoParaMotion(motion),
-    /** Incrementar al cambiar de token en una oración aunque el [motion] se repita. */
     sceneRevision: Int = 0,
     assetPath: String = AvatarAssets.BASE_GLB,
 ) {
-    val encuadre = EncuadreAvatarFijo
     val engine = rememberEngine()
+
+    // 1. AJUSTE DE CÁMARA: Subimos la cámara y apuntamos al pecho/rostro
     val cameraNode = rememberCameraNode(engine) {
-        position = Position(x = encuadre.camX, y = encuadre.camY, z = encuadre.camZ)
-        lookAt(Position(x = encuadre.lookX, y = encuadre.lookY, z = encuadre.lookZ))
+        position = Position(x = 0.0f, y = 1.0f, z = 2.8f) // y=1.0 sube la cámara, z=2.8 la aleja
+        lookAt(Position(x = 0.0f, y = 0.6f, z = 0.0f))    // Apunta al centro del torso
     }
 
     Box(modifier = modifier) {
@@ -44,7 +39,7 @@ fun SignAvatar3D(
                 modifier = Modifier.fillMaxSize(),
                 engine = engine,
                 cameraNode = cameraNode,
-                cameraManipulator = null,
+                cameraManipulator = null, // Mantiene la cámara bloqueada
                 surfaceType = SurfaceType.TextureSurface,
             ) {
                 rememberModelInstance(modelLoader, assetPath)?.let { modelInstance ->
@@ -52,20 +47,19 @@ fun SignAvatar3D(
                         modelInstance = modelInstance,
                         autoAnimate = true,
                         animationName = null,
-                        animationLoop = true,
+                        animationLoop = false, // Ejecuta la seña 1 sola vez
                         animationSpeed = perfil.animationSpeed,
-                        scaleToUnits = encuadre.scaleToUnits,
-                        // Cadera/cintura en el origen: el borde inferior del visor corta a la cintura.
-                        centerOrigin = Position(x = 0f, y = encuadre.centerOriginY, z = 0f),
-                        position = Position(
-                            x = encuadre.modelPosX,
-                            y = encuadre.modelPosY,
-                            z = encuadre.modelPosZ,
-                        ),
+
+                        // 2. AJUSTE DEL MODELO: Forzamos tamaño estándar y lo centramos
+                        scaleToUnits = 1.8f, // Forza a que el modelo mida aprox 1.8 metros
+                        centerOrigin = Position(x = 0f, y = 0f, z = 0f), // Centra el pivote en el medio del cuerpo
+                        position = Position(x = 0f, y = -0.6f, z = 0f),  // Baja el avatar para encuadrar la parte superior
                     )
                 }
             }
         }
+
+        // Bloqueo de toques en pantalla
         Box(
             modifier = Modifier
                 .fillMaxSize()
