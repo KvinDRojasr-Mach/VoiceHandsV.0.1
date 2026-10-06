@@ -18,9 +18,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -46,10 +51,62 @@ fun SenasATextoScreen() {
     var manoIzquierdaInfo by remember { mutableStateOf(InfoMano()) }
     var manoDerechaInfo by remember { mutableStateOf(InfoMano()) }
 
-    var textoConstruido by remember { mutableStateOf("") }
+    var textFieldState by remember { mutableStateOf(TextFieldValue("")) }
     var ultimaLetraConfirmada by remember { mutableStateOf("") }
     var vozActivaEnTiempoReal by remember { mutableStateOf(false) }
     var ttsEngine by remember { mutableStateOf<TextToSpeech?>(null) }
+
+    // FUNCIÓN PARA REPRODUCIR VOZ FLUIDA (EVITA EL DELETREO)
+    fun hablarFluido(texto: String) {
+        if (texto.isBlank() || ttsEngine == null) return
+
+        // Convertimos a minúsculas y limpiamos espacios múltiples para que el TTS lea la palabra completa
+        val textoLimpio = texto.trim()
+            .lowercase(Locale("es", "CO"))
+            .replace(Regex("\\s+"), " ")
+
+        ttsEngine?.speak(textoLimpio, TextToSpeech.QUEUE_FLUSH, null, null)
+    }
+
+    fun insertarEnCursor(nuevoTexto: String) {
+        val currentText = textFieldState.text
+        val selection = textFieldState.selection
+
+        val start = selection.start.coerceIn(0, currentText.length)
+        val end = selection.end.coerceIn(0, currentText.length)
+
+        val newText = currentText.replaceRange(start, end, nuevoTexto)
+        val newCursorPos = start + nuevoTexto.length
+
+        textFieldState = TextFieldValue(
+            text = newText,
+            selection = TextRange(newCursorPos)
+        )
+    }
+
+    fun borrarEnCursor() {
+        val currentText = textFieldState.text
+        val selection = textFieldState.selection
+
+        if (currentText.isEmpty()) return
+
+        if (selection.start != selection.end) {
+            val start = selection.start.coerceIn(0, currentText.length)
+            val end = selection.end.coerceIn(0, currentText.length)
+            val newText = currentText.removeRange(start, end)
+            textFieldState = TextFieldValue(
+                text = newText,
+                selection = TextRange(start)
+            )
+        } else if (selection.start > 0) {
+            val cursor = selection.start.coerceIn(1, currentText.length)
+            val newText = currentText.removeRange(cursor - 1, cursor)
+            textFieldState = TextFieldValue(
+                text = newText,
+                selection = TextRange(cursor - 1)
+            )
+        }
+    }
 
     DisposableEffect(context) {
         val ttsInstance = TextToSpeech(context) { status ->
@@ -76,17 +133,17 @@ fun SenasATextoScreen() {
         if (caracterActual != "-") {
             kotlinx.coroutines.delay(300)
             if (caracterActual != ultimaLetraConfirmada) {
-                textoConstruido += caracterActual
+                insertarEnCursor(caracterActual)
                 if (vozActivaEnTiempoReal) {
-                    ttsEngine?.speak(caracterActual, TextToSpeech.QUEUE_FLUSH, null, null)
+                    hablarFluido(caracterActual)
                 }
                 ultimaLetraConfirmada = caracterActual
             }
         } else {
-            if (textoConstruido.isNotEmpty() && !textoConstruido.endsWith(" ")) {
+            if (textFieldState.text.isNotEmpty() && !textFieldState.text.endsWith(" ")) {
                 kotlinx.coroutines.delay(2000)
                 if (caracterActual == "-") {
-                    textoConstruido += " "
+                    insertarEnCursor(" ")
                 }
             }
             ultimaLetraConfirmada = ""
@@ -94,19 +151,18 @@ fun SenasATextoScreen() {
     }
 
     val overlayView = remember { HandOverlayView(context) }
-
-    // CAMBIO 1: Saber si la cámara activa es la frontal
     val isFrontal = (cameraSelector == CameraSelector.DEFAULT_FRONT_CAMERA)
 
-    // CAMBIO 2: Recargar el analizador cuando cambia cameraSelector
     val analyzer = remember(cameraSelector) {
+        manoIzquierdaInfo = InfoMano()
+        manoDerechaInfo = InfoMano()
+
         HandAnalyzer(
             context = context,
+            isFrontCamera = isFrontal,
             onGesturesDetected = { izq, der, total, landmarks ->
                 cantidadManos = total
-
-                // Pasarle la bandera isFrontal al overlay
-                overlayView.setLandmarks(landmarks, isFrontal)
+                overlayView.setLandmarks(landmarks)
 
                 if (total == 0) {
                     manoIzquierdaInfo = InfoMano()
@@ -167,7 +223,11 @@ fun SenasATextoScreen() {
 
                     AndroidView(
                         factory = { overlayView },
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                scaleX = if (isFrontal) -1f else 1f
+                            }
                     )
                 } else {
                     Button(
@@ -262,11 +322,33 @@ fun SenasATextoScreen() {
                 )
                 Spacer(modifier = Modifier.height(2.dp))
 
-                Text(
-                    text = if (textoConstruido.isEmpty()) "Haz señas para escribir..." else textoConstruido,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (textoConstruido.isEmpty()) Color.Gray else colorEsquema.primary
+                OutlinedTextField(
+                    value = textFieldState,
+                    onValueChange = { textFieldState = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    textStyle = TextStyle(
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = colorEsquema.primary,
+                        textAlign = TextAlign.Center
+                    ),
+                    placeholder = {
+                        Text(
+                            text = "Haz señas para escribir...",
+                            fontSize = 16.sp,
+                            color = Color.Gray,
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Center
+                        )
+                    },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = colorEsquema.primary,
+                        unfocusedBorderColor = Color.Transparent,
+                        focusedContainerColor = colorEsquema.surfaceVariant.copy(alpha = 0.3f),
+                        unfocusedContainerColor = colorEsquema.surfaceVariant.copy(alpha = 0.15f)
+                    ),
+                    shape = RoundedCornerShape(10.dp)
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -278,9 +360,9 @@ fun SenasATextoScreen() {
                     Button(
                         onClick = {
                             if (caracterActual != "-") {
-                                textoConstruido += caracterActual
+                                insertarEnCursor(caracterActual)
                                 if (vozActivaEnTiempoReal) {
-                                    ttsEngine?.speak(caracterActual, TextToSpeech.QUEUE_FLUSH, null, null)
+                                    hablarFluido(caracterActual)
                                 }
                             }
                         },
@@ -291,23 +373,28 @@ fun SenasATextoScreen() {
                     }
 
                     OutlinedButton(
-                        onClick = { textoConstruido += " " },
+                        onClick = { insertarEnCursor(" ") },
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Text("Espacio", fontSize = 11.sp)
                     }
 
                     OutlinedButton(
-                        onClick = { if (textoConstruido.isNotEmpty()) textoConstruido = textoConstruido.dropLast(1) },
+                        onClick = { borrarEnCursor() },
                         shape = RoundedCornerShape(8.dp)
                     ) {
-                        Text("Borrar", fontSize = 11.sp)
+                        Icon(
+                            Icons.Outlined.Backspace,
+                            contentDescription = "Borrar posición",
+                            modifier = Modifier.size(14.dp)
+                        )
                     }
 
+                    // BOTÓN DE VOZ CON PRONUNCIACIÓN FLUIDA CORREGIDA
                     Button(
                         onClick = {
-                            if (textoConstruido.isNotEmpty()) {
-                                ttsEngine?.speak(textoConstruido, TextToSpeech.QUEUE_FLUSH, null, null)
+                            if (textFieldState.text.isNotEmpty()) {
+                                hablarFluido(textFieldState.text)
                             }
                         },
                         shape = RoundedCornerShape(8.dp)
@@ -318,9 +405,13 @@ fun SenasATextoScreen() {
                     }
 
                     IconButton(
-                        onClick = { textoConstruido = "" }
+                        onClick = { textFieldState = TextFieldValue("") }
                     ) {
-                        Icon(Icons.Outlined.Delete, contentDescription = null, tint = Color.Red)
+                        Icon(
+                            Icons.Outlined.DeleteSweep,
+                            contentDescription = "Borrar todo",
+                            tint = Color.Red
+                        )
                     }
                 }
             }

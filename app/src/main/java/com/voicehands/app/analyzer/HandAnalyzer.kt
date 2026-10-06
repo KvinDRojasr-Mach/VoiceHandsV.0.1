@@ -21,6 +21,7 @@ data class InfoMano(
 
 class HandAnalyzer(
     private val context: Context,
+    private val isFrontCamera: Boolean,
     private val onGesturesDetected: (
         manoIzquierda: InfoMano,
         manoDerecha: InfoMano,
@@ -44,67 +45,53 @@ class HandAnalyzer(
             .setBaseOptions(baseOptions)
             .setRunningMode(RunningMode.LIVE_STREAM)
             .setNumHands(2)
-            .setMinHandDetectionConfidence(0.18f)
-            .setMinHandPresenceConfidence(0.18f)
-            .setMinTrackingConfidence(0.18f)
+            .setMinHandDetectionConfidence(0.08f)
+            .setMinHandPresenceConfidence(0.08f)
+            .setMinTrackingConfidence(0.08f)
             .setResultListener { result: GestureRecognizerResult, _ ->
                 val gestures = result.gestures()
-                val handednessList = result.handedness()
                 val allLandmarks = result.landmarks()
                 val totalManos = gestures.size
 
                 var infoIzq = InfoMano()
                 var infoDer = InfoMano()
 
-                for (i in 0 until totalManos) {
-                    if (gestures[i].isNotEmpty()) {
-                        val topGesture = gestures[i][0]
+                if (totalManos == 1) {
+                    val info = procesarGesto(gestures[0])
+                    if (allLandmarks.isNotEmpty() && allLandmarks[0].isNotEmpty()) {
+                        val posX = allLandmarks[0][0].x()
+                        // En la frontal (espejo), X < 0.5f está en la derecha visual
+                        val esIzquierdaEnPantalla = if (isFrontCamera) posX > 0.5f else posX < 0.5f
+                        if (esIzquierdaEnPantalla) {
+                            infoIzq = info.copy(mano = "Izquierda")
+                        } else {
+                            infoDer = info.copy(mano = "Derecha")
+                        }
+                    }
+                } else if (totalManos >= 2) {
+                    val info0 = procesarGesto(gestures[0])
+                    val info1 = procesarGesto(gestures[1])
 
-                        if (topGesture.score() > 0.18f) {
-                            val originalLabel = topGesture.categoryName().trim()
-                            val cleanedLabel = originalLabel.uppercase()
+                    val x0 = if (allLandmarks.size > 0 && allLandmarks[0].isNotEmpty()) allLandmarks[0][0].x() else 0f
+                    val x1 = if (allLandmarks.size > 1 && allLandmarks[1].isNotEmpty()) allLandmarks[1][0].x() else 1f
 
-                            var ladoMano = "Desconocida"
-                            if (handednessList.size > i && handednessList[i].isNotEmpty()) {
-                                val handCategory = handednessList[i][0].categoryName()
-                                ladoMano = when (handCategory.lowercase()) {
-                                    "left" -> "Izquierda"
-                                    "right" -> "Derecha"
-                                    else -> handCategory
-                                }
-                            }
-
-                            var letraDet = "-"
-                            var numDet = "-"
-
-                            when {
-                                cleanedLabel in listOf("0", "1", "2", "3") -> {
-                                    numDet = cleanedLabel
-                                    if (cleanedLabel == "0") letraDet = "A"
-                                }
-                                cleanedLabel.length == 1 && cleanedLabel[0].isLetter() -> {
-                                    letraDet = cleanedLabel
-                                }
-                                cleanedLabel.contains("_") -> {
-                                    val parteLetra = cleanedLabel.split("_").last()
-                                    if (parteLetra.length == 1 && parteLetra[0].isLetter()) {
-                                        letraDet = parteLetra
-                                    }
-                                }
-                            }
-
-                            val infoProcesada = InfoMano(
-                                mano = ladoMano,
-                                letra = letraDet,
-                                numero = numDet,
-                                rawLabel = "$originalLabel (${(topGesture.score() * 100).toInt()}%)"
-                            )
-
-                            if (ladoMano == "Izquierda") {
-                                infoIzq = infoProcesada
-                            } else if (ladoMano == "Derecha") {
-                                infoDer = infoProcesada
-                            }
+                    if (isFrontCamera) {
+                        // En frontal (espejo), mayor X en MediaPipe está a la IZQUIERDA de la pantalla
+                        if (x0 > x1) {
+                            infoIzq = info0.copy(mano = "Izquierda")
+                            infoDer = info1.copy(mano = "Derecha")
+                        } else {
+                            infoIzq = info1.copy(mano = "Izquierda")
+                            infoDer = info0.copy(mano = "Derecha")
+                        }
+                    } else {
+                        // En trasera, menor X está a la IZQUIERDA de la pantalla
+                        if (x0 < x1) {
+                            infoIzq = info0.copy(mano = "Izquierda")
+                            infoDer = info1.copy(mano = "Derecha")
+                        } else {
+                            infoIzq = info1.copy(mano = "Izquierda")
+                            infoDer = info0.copy(mano = "Derecha")
                         }
                     }
                 }
@@ -117,11 +104,59 @@ class HandAnalyzer(
         gestureRecognizer = GestureRecognizer.createFromOptions(context, options)
     }
 
+    private fun procesarGesto(gestureList: List<com.google.mediapipe.tasks.components.containers.Category>): InfoMano {
+        if (gestureList.isEmpty()) return InfoMano()
+
+        val topGesture = gestureList[0]
+        val originalLabel = topGesture.categoryName().trim()
+        val cleanedLabel = originalLabel.uppercase()
+
+        val minScore = if (cleanedLabel.contains("P")) 0.05f else 0.08f
+
+        if (topGesture.score() <= minScore) return InfoMano()
+
+        var letraDet = "-"
+        var numDet = "-"
+
+        when {
+            cleanedLabel == "1" -> {
+                letraDet = "I"
+                numDet = "1"
+            }
+            cleanedLabel == "2" -> {
+                letraDet = "V"
+                numDet = "2"
+            }
+            cleanedLabel == "0" -> {
+                letraDet = "A"
+                numDet = "0"
+            }
+            cleanedLabel == "3" -> {
+                numDet = cleanedLabel
+            }
+            cleanedLabel.length == 1 && cleanedLabel[0].isLetter() -> {
+                letraDet = cleanedLabel
+            }
+            cleanedLabel.contains("_") -> {
+                val parteLetra = cleanedLabel.split("_").last()
+                if (parteLetra.length == 1 && parteLetra[0].isLetter()) {
+                    letraDet = parteLetra
+                }
+            }
+        }
+
+        return InfoMano(
+            mano = "Detectada",
+            letra = letraDet,
+            numero = numDet,
+            rawLabel = "$originalLabel (${(topGesture.score() * 100).toInt()}%)"
+        )
+    }
+
     override fun analyze(imageProxy: ImageProxy) {
         try {
             val bitmapBuffer = imageProxy.toBitmap()
             val matrix = Matrix().apply {
-                // Rotación estándar del sensor (sin postScale negativo)
                 postRotate(imageProxy.imageInfo.rotationDegrees.toFloat())
             }
             val processedBitmap = Bitmap.createBitmap(
