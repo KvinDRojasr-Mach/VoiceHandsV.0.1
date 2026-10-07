@@ -89,7 +89,7 @@ class MainActivity : ComponentActivity() {
             var modoOscuro by rememberSaveable { mutableStateOf(prefsManager.modoOscuro) }
 
             VoiceHandsTheme(darkTheme = modoOscuro) {
-                var mostrarAppPrincipal by rememberSaveable { mutableStateOf(prefsManager.yaIniciado) }
+                var mostrarAppPrincipal by rememberSaveable { mutableStateOf(false) }
 
                 AnimatedContent(
                     targetState = mostrarAppPrincipal,

@@ -1,8 +1,8 @@
 // Build script de nivel de proyecto para VoiceHands
 
 plugins {
-    id("com.android.application") version "9.3.2" apply false
-    id("com.android.library") version "9.3.2" apply false
+    id("com.android.application") version "9.0.0" apply false
+    id("com.android.library") version "9.0.0" apply false
     id("org.jetbrains.kotlin.android") version "2.3.20" apply false
     id("org.jetbrains.kotlin.plugin.compose") version "2.3.20" apply false
     // KSP 2.3+ ya no usa el formato kotlin-ksp (p. ej. 2.3.20-2.0.4 no existe).

@@ -15,73 +15,67 @@ class HandOverlayView @JvmOverloads constructor(
 ) : View(context, attrs, defStyleAttr) {
 
     private var landmarksList: List<List<NormalizedLandmark>> = emptyList()
+    var isFrontCamera: Boolean = true
 
     private val pointPaint = Paint().apply {
-        color = Color.GREEN
+        color = Color.YELLOW
         style = Paint.Style.FILL
         strokeWidth = 14f
         isAntiAlias = true
     }
 
-    private val tipPointPaint = Paint().apply {
-        color = Color.YELLOW
-        style = Paint.Style.FILL
-        strokeWidth = 16f
-        isAntiAlias = true
-    }
-
-    private val linePaint = Paint().apply {
+    private val connectionPaint = Paint().apply {
         color = Color.CYAN
         style = Paint.Style.STROKE
-        strokeWidth = 7f
+        strokeWidth = 8f
         isAntiAlias = true
     }
 
-    private val HAND_CONNECTIONS = listOf(
-        Pair(0, 1), Pair(1, 2), Pair(2, 3), Pair(3, 4),       // Pulgar
-        Pair(0, 5), Pair(5, 6), Pair(6, 7), Pair(7, 8),       // Índice
-        Pair(5, 9), Pair(9, 10), Pair(10, 11), Pair(11, 12),  // Medio
-        Pair(9, 13), Pair(13, 14), Pair(14, 15), Pair(15, 16),// Anular
-        Pair(13, 17), Pair(0, 17), Pair(17, 18), Pair(18, 19), Pair(19, 20) // Meñique y Palma
+    private val handConnections = listOf(
+        Pair(0, 1), Pair(1, 2), Pair(2, 3), Pair(3, 4),     // Pulgar
+        Pair(0, 5), Pair(5, 6), Pair(6, 7), Pair(7, 8),     // Índice
+        Pair(5, 9), Pair(9, 10), Pair(10, 11), Pair(11, 12), // Medio
+        Pair(9, 13), Pair(13, 14), Pair(14, 15), Pair(15, 16), // Anular
+        Pair(13, 17), Pair(0, 17), Pair(17, 18), Pair(18, 19), Pair(19, 20) // Meñique
     )
 
-    private val FINGER_TIPS = listOf(4, 8, 12, 16, 20)
-
-    private var isFrontal: Boolean = true
-
-    fun setLandmarks(landmarks: List<List<NormalizedLandmark>>, isFrontal: Boolean = true) {
+    fun setLandmarks(landmarks: List<List<NormalizedLandmark>>, isFront: Boolean = true) {
         this.landmarksList = landmarks
-        this.isFrontal = isFrontal
+        this.isFrontCamera = isFront
         postInvalidateOnAnimation()
     }
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
 
-        val viewWidth = width.toFloat()
-        val viewHeight = height.toFloat()
+        val w = width.toFloat()
+        val h = height.toFloat()
+
+        if (w == 0f || h == 0f) return
 
         for (handLandmarks in landmarksList) {
-            // Dibujar esqueleto de conexiones
-            for (connection in HAND_CONNECTIONS) {
+            if (handLandmarks.isEmpty()) continue
+
+            // 1. DIBUJAR LÍNEAS DE CONEXIÓN
+            for (connection in handConnections) {
                 val start = handLandmarks[connection.first]
                 val end = handLandmarks[connection.second]
 
-                val startX = (if (isFrontal) 1f - start.x() else start.x()) * viewWidth
-                val startY = start.y() * viewHeight
-                val endX = (if (isFrontal) 1f - end.x() else end.x()) * viewWidth
-                val endY = end.y() * viewHeight
+                val startX = if (isFrontCamera) w * (1f - start.x()) else w * start.x()
+                val startY = h * start.y()
 
-                canvas.drawLine(startX, startY, endX, endY, linePaint)
+                val endX = if (isFrontCamera) w * (1f - end.x()) else w * end.x()
+                val endY = h * end.y()
+
+                canvas.drawLine(startX, startY, endX, endY, connectionPaint)
             }
 
-            // Dibujar articulaciones y puntas
-            for ((index, landmark) in handLandmarks.withIndex()) {
-                val x = (if (isFrontal) 1f - landmark.x() else landmark.x()) * viewWidth
-                val y = landmark.y() * viewHeight
+            // 2. DIBUJAR PUNTOS DE LA MANO
+            for (landmark in handLandmarks) {
+                val px = if (isFrontCamera) w * (1f - landmark.x()) else w * landmark.x()
+                val py = h * landmark.y()
 
-                val paintToUse = if (index in FINGER_TIPS) tipPointPaint else pointPaint
-                canvas.drawCircle(x, y, 10f, paintToUse)
+                canvas.drawCircle(px, py, 10f, pointPaint)
             }
         }
     }

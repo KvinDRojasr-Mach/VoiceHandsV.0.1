@@ -50,7 +50,7 @@ class HandAnalyzer(
             .setMinTrackingConfidence(0.08f)
             .setResultListener { result: GestureRecognizerResult, _ ->
                 val gestures = result.gestures()
-                val allLandmarks = result.landmarks()
+                val rawLandmarks = result.landmarks()
                 val totalManos = gestures.size
 
                 var infoIzq = InfoMano()
@@ -58,10 +58,15 @@ class HandAnalyzer(
 
                 if (totalManos == 1) {
                     val info = procesarGesto(gestures[0])
-                    if (allLandmarks.isNotEmpty() && allLandmarks[0].isNotEmpty()) {
-                        val posX = allLandmarks[0][0].x()
-                        // En la frontal (espejo), X < 0.5f está en la derecha visual
-                        val esIzquierdaEnPantalla = if (isFrontCamera) posX > 0.5f else posX < 0.5f
+                    if (rawLandmarks.isNotEmpty() && rawLandmarks[0].isNotEmpty()) {
+                        val posX = rawLandmarks[0][0].x()
+
+                        val esIzquierdaEnPantalla = if (isFrontCamera) {
+                            posX > 0.5f
+                        } else {
+                            posX < 0.5f
+                        }
+
                         if (esIzquierdaEnPantalla) {
                             infoIzq = info.copy(mano = "Izquierda")
                         } else {
@@ -72,11 +77,10 @@ class HandAnalyzer(
                     val info0 = procesarGesto(gestures[0])
                     val info1 = procesarGesto(gestures[1])
 
-                    val x0 = if (allLandmarks.isNotEmpty() && allLandmarks[0].isNotEmpty()) allLandmarks[0][0].x() else 0f
-                    val x1 = if (allLandmarks.size > 1 && allLandmarks[1].isNotEmpty()) allLandmarks[1][0].x() else 1f
+                    val x0 = if (rawLandmarks.size > 0 && rawLandmarks[0].isNotEmpty()) rawLandmarks[0][0].x() else 0f
+                    val x1 = if (rawLandmarks.size > 1 && rawLandmarks[1].isNotEmpty()) rawLandmarks[1][0].x() else 1f
 
                     if (isFrontCamera) {
-                        // En frontal (espejo), mayor X en MediaPipe está a la IZQUIERDA de la pantalla
                         if (x0 > x1) {
                             infoIzq = info0.copy(mano = "Izquierda")
                             infoDer = info1.copy(mano = "Derecha")
@@ -85,7 +89,6 @@ class HandAnalyzer(
                             infoDer = info0.copy(mano = "Derecha")
                         }
                     } else {
-                        // En trasera, menor X está a la IZQUIERDA de la pantalla
                         if (x0 < x1) {
                             infoIzq = info0.copy(mano = "Izquierda")
                             infoDer = info1.copy(mano = "Derecha")
@@ -96,7 +99,7 @@ class HandAnalyzer(
                     }
                 }
 
-                onGesturesDetected(infoIzq, infoDer, totalManos, allLandmarks)
+                onGesturesDetected(infoIzq, infoDer, totalManos, rawLandmarks)
             }
             .setErrorListener { error -> error.printStackTrace() }
             .build()
@@ -134,14 +137,8 @@ class HandAnalyzer(
             cleanedLabel == "3" -> {
                 numDet = cleanedLabel
             }
-            cleanedLabel.length == 1 && cleanedLabel[0].isLetter() -> {
+            else -> {
                 letraDet = cleanedLabel
-            }
-            cleanedLabel.contains("_") -> {
-                val parteLetra = cleanedLabel.split("_").last()
-                if (parteLetra.length == 1 && parteLetra[0].isLetter()) {
-                    letraDet = parteLetra
-                }
             }
         }
 
