@@ -106,3 +106,15 @@ dependencies {
     implementation("androidx.room:room-ktx:$roomVersion")
     ksp("androidx.room:room-compiler:$roomVersion")
 }
+
+// TAREA SEGURA PARA RENOMBRAR EL APK AL COMPILAR
+project.afterEvaluate {
+    tasks.findByName("assembleDebug")?.doLast {
+        val apkDir = layout.buildDirectory.dir("outputs/apk/debug").get().asFile
+        val originalApk = File(apkDir, "app-debug.apk")
+        val customApk = File(apkDir, "VoiceHands_v1.apk")
+        if (originalApk.exists()) {
+            originalApk.copyTo(customApk, overwrite = true)
+        }
+    }
+}
