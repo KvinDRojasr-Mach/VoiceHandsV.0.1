@@ -1,6 +1,6 @@
 # VoiceHands
 
-VoiceHands es un prototipo funcional de aplicación móvil nativa para la plataforma Android, diseñado para mitigar las profundas barreras de comunicación de la población sorda en el municipio de Mosquera, Cundinamarca[cite: 4, 10]. El sistema permite realizar una traducción bidireccional en tiempo real entre la Lengua de Señas Colombiana (LSC) y texto/voz.
+VoiceHands es un prototipo funcional de aplicación móvil nativa para la plataforma Android, diseñado para mitigar las profundas barreras de comunicación de la población sorda en el municipio de Mosquera, Cundinamarca. El sistema permite realizar una traducción bidireccional en tiempo real entre la Lengua de Señas Colombiana (LSC) y texto/voz.
 
 ## Características Principales
 
