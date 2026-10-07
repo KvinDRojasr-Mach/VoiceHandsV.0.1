@@ -47,8 +47,11 @@ class HandOverlayView @JvmOverloads constructor(
 
     private val FINGER_TIPS = listOf(4, 8, 12, 16, 20)
 
-    fun setLandmarks(landmarks: List<List<NormalizedLandmark>>) {
+    private var isFrontal: Boolean = true
+
+    fun setLandmarks(landmarks: List<List<NormalizedLandmark>>, isFrontal: Boolean = true) {
         this.landmarksList = landmarks
+        this.isFrontal = isFrontal
         postInvalidateOnAnimation()
     }
 
@@ -64,9 +67,9 @@ class HandOverlayView @JvmOverloads constructor(
                 val start = handLandmarks[connection.first]
                 val end = handLandmarks[connection.second]
 
-                val startX = start.x() * viewWidth
+                val startX = (if (isFrontal) 1f - start.x() else start.x()) * viewWidth
                 val startY = start.y() * viewHeight
-                val endX = end.x() * viewWidth
+                val endX = (if (isFrontal) 1f - end.x() else end.x()) * viewWidth
                 val endY = end.y() * viewHeight
 
                 canvas.drawLine(startX, startY, endX, endY, linePaint)
@@ -74,7 +77,7 @@ class HandOverlayView @JvmOverloads constructor(
 
             // Dibujar articulaciones y puntas
             for ((index, landmark) in handLandmarks.withIndex()) {
-                val x = landmark.x() * viewWidth
+                val x = (if (isFrontal) 1f - landmark.x() else landmark.x()) * viewWidth
                 val y = landmark.y() * viewHeight
 
                 val paintToUse = if (index in FINGER_TIPS) tipPointPaint else pointPaint

@@ -72,7 +72,7 @@ class HandAnalyzer(
                     val info0 = procesarGesto(gestures[0])
                     val info1 = procesarGesto(gestures[1])
 
-                    val x0 = if (allLandmarks.size > 0 && allLandmarks[0].isNotEmpty()) allLandmarks[0][0].x() else 0f
+                    val x0 = if (allLandmarks.isNotEmpty() && allLandmarks[0].isNotEmpty()) allLandmarks[0][0].x() else 0f
                     val x1 = if (allLandmarks.size > 1 && allLandmarks[1].isNotEmpty()) allLandmarks[1][0].x() else 1f
 
                     if (isFrontCamera) {

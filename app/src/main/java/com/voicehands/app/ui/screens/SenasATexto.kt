@@ -13,13 +13,14 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.automirrored.outlined.VolumeUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -54,7 +55,7 @@ fun SenasATextoScreen() {
     DisposableEffect(context) {
         val ttsInstance = TextToSpeech(context) { status ->
             if (status == TextToSpeech.SUCCESS) {
-                ttsEngine?.language = Locale("es", "CO")
+                ttsEngine?.language = Locale.Builder().setLanguage("es").setRegion("CO").build()
             }
         }
         ttsEngine = ttsInstance
@@ -85,9 +86,7 @@ fun SenasATextoScreen() {
         } else {
             if (textoConstruido.isNotEmpty() && !textoConstruido.endsWith(" ")) {
                 kotlinx.coroutines.delay(2000)
-                if (caracterActual == "-") {
-                    textoConstruido += " "
-                }
+                textoConstruido += " "
             }
             ultimaLetraConfirmada = ""
         }
@@ -102,6 +101,7 @@ fun SenasATextoScreen() {
     val analyzer = remember(cameraSelector) {
         HandAnalyzer(
             context = context,
+            isFrontCamera = isFrontal,
             onGesturesDetected = { izq, der, total, landmarks ->
                 cantidadManos = total
 
@@ -263,7 +263,7 @@ fun SenasATextoScreen() {
                 Spacer(modifier = Modifier.height(2.dp))
 
                 Text(
-                    text = if (textoConstruido.isEmpty()) "Haz señas para escribir..." else textoConstruido,
+                    text = textoConstruido.ifEmpty { "Haz señas para escribir..." },
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = if (textoConstruido.isEmpty()) Color.Gray else colorEsquema.primary
@@ -312,7 +312,7 @@ fun SenasATextoScreen() {
                         },
                         shape = RoundedCornerShape(8.dp)
                     ) {
-                        Icon(Icons.Outlined.VolumeUp, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Icon(Icons.AutoMirrored.Outlined.VolumeUp, contentDescription = null, modifier = Modifier.size(14.dp))
                         Spacer(modifier = Modifier.width(2.dp))
                         Text("Voz", fontSize = 11.sp)
                     }
