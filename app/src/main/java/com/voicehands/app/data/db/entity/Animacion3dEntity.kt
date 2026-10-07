@@ -33,12 +33,26 @@ data class Animacion3dEntity(
     val idRig: Long,
     val clipName: String,
     /**
-     * Ruta local, assets (`models/...`) o URL remota del GLB.
-     * Vacío = placeholder hasta subir la animación real.
+     * Ruta local de assets/res o URL remota del recurso multimedia (video MP4/WebM, GIF o imagen WebP/PNG).
+     * Mantiene retrocompatibilidad con la propiedad [urlGlb].
      */
     val urlGlb: String = "",
-    val formato: String = "glb",
+    val formato: String = "mp4",
     val duracionMs: Int = 1350,
     val version: Int = 1,
     val esVigente: Boolean = true,
-)
+) {
+    val urlMedia: String
+        get() = urlGlb
+
+    val esVideo: Boolean
+        get() = formato.lowercase() in listOf("mp4", "webm", "mkv", "avi") ||
+            urlGlb.endsWith(".mp4", ignoreCase = true) ||
+            urlGlb.endsWith(".webm", ignoreCase = true)
+
+    val esImagenOGif: Boolean
+        get() = formato.lowercase() in listOf("gif", "webp", "png", "jpg", "jpeg") ||
+            urlGlb.endsWith(".gif", ignoreCase = true) ||
+            urlGlb.endsWith(".webp", ignoreCase = true) ||
+            urlGlb.endsWith(".png", ignoreCase = true)
+}

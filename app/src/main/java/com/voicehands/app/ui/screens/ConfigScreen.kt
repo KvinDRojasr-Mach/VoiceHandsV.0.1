@@ -23,8 +23,10 @@ import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Language
+import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -43,11 +45,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import com.voicehands.app.data.preferences.PreferencesManager
 import com.voicehands.app.ui.theme.CelestePrimary
 
 /**
- * Preferencias y permisos. El interruptor de tema oscuro usa el mismo estado global
- * que el botón de la cabecera ([temaOscuro] / [onTemaOscuroChange]).
+ * Pantalla de Configuración y Preferencias del usuario.
  */
 @Composable
 fun ConfigScreen(
@@ -55,6 +57,7 @@ fun ConfigScreen(
     onTemaOscuroChange: (Boolean) -> Unit = {},
 ) {
     val context = LocalContext.current
+    val prefsManager = remember { PreferencesManager(context.applicationContext) }
 
     val isCameraGranted = ContextCompat.checkSelfPermission(
         context,
@@ -62,6 +65,7 @@ fun ConfigScreen(
     ) == PackageManager.PERMISSION_GRANTED
 
     var cameraEnabled by remember { mutableStateOf(isCameraGranted) }
+    var velocidadLsc by remember { mutableStateOf(prefsManager.velocidadLsc) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
@@ -71,32 +75,31 @@ fun ConfigScreen(
     val textColor = MaterialTheme.colorScheme.onBackground
     val cardColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
     val iconColor = MaterialTheme.colorScheme.onSurfaceVariant
-    val dividerColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)
+    val dividerColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(24.dp)
             .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(24.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         Text(
             text = "Configuración",
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
             color = textColor,
         )
 
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        // Sección Permisos
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(
                 text = "Permisos",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                 color = CelestePrimary,
             )
 
             Card(
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = cardColor),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             ) {
@@ -131,37 +134,21 @@ fun ConfigScreen(
             }
         }
 
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        // Sección Preferencias de Lectura y Tema
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(
                 text = "Preferencias",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                 color = CelestePrimary,
             )
 
             Card(
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = cardColor),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             ) {
                 Column {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(imageVector = Icons.Outlined.Language, contentDescription = null, tint = iconColor)
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Text(text = "Idioma", fontSize = 16.sp, fontWeight = FontWeight.Medium, color = textColor)
-                        }
-                        Text(text = "Español", fontSize = 14.sp, color = iconColor, fontWeight = FontWeight.Medium)
-                    }
-
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = dividerColor)
-
+                    // Tema Oscuro
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -180,20 +167,73 @@ fun ConfigScreen(
                             colors = SwitchDefaults.colors(checkedTrackColor = CelestePrimary),
                         )
                     }
+
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = dividerColor)
+
+                    // Velocidad de Deletreo LSC
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(imageVector = Icons.Outlined.Speed, contentDescription = null, tint = iconColor)
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Text(text = "Velocidad de Deletreo LSC", fontSize = 16.sp, fontWeight = FontWeight.Medium, color = textColor)
+                        }
+                        Spacer(modifier = Modifier.padding(top = 10.dp))
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            listOf(
+                                0.75f to "Lento (0.7x)",
+                                1.0f to "Normal (1.0x)",
+                                1.4f to "Rápido (1.4x)",
+                            ).forEach { (v, label) ->
+                                FilterChip(
+                                    selected = (velocidadLsc == v),
+                                    onClick = {
+                                        velocidadLsc = v
+                                        prefsManager.velocidadLsc = v
+                                    },
+                                    label = { Text(text = label, fontSize = 12.sp) },
+                                )
+                            }
+                        }
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = dividerColor)
+
+                    // Idioma
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(imageVector = Icons.Outlined.Language, contentDescription = null, tint = iconColor)
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Text(text = "Idioma de Señas", fontSize = 16.sp, fontWeight = FontWeight.Medium, color = textColor)
+                        }
+                        Text(text = "LSC (Español CO)", fontSize = 14.sp, color = iconColor, fontWeight = FontWeight.Medium)
+                    }
                 }
             }
         }
 
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        // Sección Acerca de
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(
                 text = "Acerca de",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                 color = CelestePrimary,
             )
 
             Card(
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = cardColor),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             ) {
@@ -207,9 +247,9 @@ fun ConfigScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(imageVector = Icons.Outlined.Info, contentDescription = null, tint = iconColor)
                         Spacer(modifier = Modifier.width(16.dp))
-                        Text(text = "Versión", fontSize = 16.sp, fontWeight = FontWeight.Medium, color = textColor)
+                        Text(text = "Versión de la App", fontSize = 16.sp, fontWeight = FontWeight.Medium, color = textColor)
                     }
-                    Text(text = "0.1", fontSize = 14.sp, color = iconColor)
+                    Text(text = "1.0", fontSize = 14.sp, color = iconColor, fontWeight = FontWeight.Medium)
                 }
             }
         }

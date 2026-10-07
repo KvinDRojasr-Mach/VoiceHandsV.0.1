@@ -1,9 +1,9 @@
 package com.voicehands.app.lsc
 
 /**
- * Avatar quemado en assets. Se muestra en idle hasta que haya un GLB de seña en BD.
+ * Recursos multimedia base del Avatar de Señas LSC.
  */
 object AvatarAssets {
-    const val BASE_GLB = "models/Avatar_Masculino_Base.glb"
+    const val BASE_IMAGE = "images/avatar_base.png"
     const val RIG_CODIGO = "avatar_v1"
 }

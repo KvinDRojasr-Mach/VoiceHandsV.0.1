@@ -85,12 +85,25 @@ data class AnimacionPlayback(
     val rig: AvatarRigEntity,
     val animacion: Animacion3dEntity?,
 ) {
-    /** true si hay un GLB listo para SceneView. */
-    val tieneGlb: Boolean
+    /** true si hay un archivo de video/imagen listo para el visor. */
+    val tieneMedia: Boolean
         get() = !animacion?.urlGlb.isNullOrBlank()
 
-    val assetPathOrNull: String?
+    @Deprecated("Usar tieneMedia", ReplaceWith("tieneMedia"))
+    val tieneGlb: Boolean
+        get() = tieneMedia
+
+    val urlMedia: String?
         get() = animacion?.urlGlb?.takeIf { it.isNotBlank() }
+
+    val assetPathOrNull: String?
+        get() = urlMedia
+
+    val esVideo: Boolean
+        get() = animacion?.esVideo == true
+
+    val esImagenOGif: Boolean
+        get() = animacion?.esImagenOGif == true
 
     val clipName: String
         get() = animacion?.clipName ?: rig.clipIdle
