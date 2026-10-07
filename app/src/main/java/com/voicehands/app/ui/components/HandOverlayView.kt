@@ -15,19 +15,25 @@ class HandOverlayView @JvmOverloads constructor(
 ) : View(context, attrs, defStyleAttr) {
 
     private var landmarksList: List<List<NormalizedLandmark>> = emptyList()
-    var isFrontCamera: Boolean = true // Controla si reflejamos X o no
 
     private val pointPaint = Paint().apply {
         color = Color.GREEN
         style = Paint.Style.FILL
-        strokeWidth = 12f
+        strokeWidth = 14f
+        isAntiAlias = true
+    }
+
+    private val tipPointPaint = Paint().apply {
+        color = Color.YELLOW
+        style = Paint.Style.FILL
+        strokeWidth = 16f
         isAntiAlias = true
     }
 
     private val linePaint = Paint().apply {
         color = Color.CYAN
         style = Paint.Style.STROKE
-        strokeWidth = 6f
+        strokeWidth = 7f
         isAntiAlias = true
     }
 
@@ -39,9 +45,10 @@ class HandOverlayView @JvmOverloads constructor(
         Pair(13, 17), Pair(0, 17), Pair(17, 18), Pair(18, 19), Pair(19, 20) // Meñique y Palma
     )
 
-    fun setLandmarks(landmarks: List<List<NormalizedLandmark>>, isFront: Boolean) {
+    private val FINGER_TIPS = listOf(4, 8, 12, 16, 20)
+
+    fun setLandmarks(landmarks: List<List<NormalizedLandmark>>) {
         this.landmarksList = landmarks
-        this.isFrontCamera = isFront
         postInvalidateOnAnimation()
     }
 
@@ -52,24 +59,26 @@ class HandOverlayView @JvmOverloads constructor(
         val viewHeight = height.toFloat()
 
         for (handLandmarks in landmarksList) {
-            // Dibujar líneas
+            // Dibujar esqueleto de conexiones
             for (connection in HAND_CONNECTIONS) {
                 val start = handLandmarks[connection.first]
                 val end = handLandmarks[connection.second]
 
-                val startX = if (isFrontCamera) (1f - start.x()) * viewWidth else start.x() * viewWidth
+                val startX = start.x() * viewWidth
                 val startY = start.y() * viewHeight
-                val endX = if (isFrontCamera) (1f - end.x()) * viewWidth else end.x() * viewWidth
+                val endX = end.x() * viewWidth
                 val endY = end.y() * viewHeight
 
                 canvas.drawLine(startX, startY, endX, endY, linePaint)
             }
 
-            // Dibujar puntos
-            for (landmark in handLandmarks) {
-                val x = if (isFrontCamera) (1f - landmark.x()) * viewWidth else landmark.x() * viewWidth
+            // Dibujar articulaciones y puntas
+            for ((index, landmark) in handLandmarks.withIndex()) {
+                val x = landmark.x() * viewWidth
                 val y = landmark.y() * viewHeight
-                canvas.drawCircle(x, y, 9f, pointPaint)
+
+                val paintToUse = if (index in FINGER_TIPS) tipPointPaint else pointPaint
+                canvas.drawCircle(x, y, 10f, paintToUse)
             }
         }
     }
